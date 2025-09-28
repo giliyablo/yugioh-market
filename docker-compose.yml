@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: yugioh_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # Backend Server Service
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      # You should use a .env file for these in production
+      DATABASE_URL: postgresql://myuser:mypassword@postgres:5432/yugioh_db
+      FIREBASE_CONFIG: # Your base64 encoded firebase service account key
+    depends_on:
+      - postgres
+
+  # Frontend Client Service
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
