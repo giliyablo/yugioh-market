@@ -3,12 +3,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCVtzbsX6Vu6T8Z2-XqVq3pqANFJvZdVp8",
+  authDomain: "tcg-cards-market-chat.firebaseapp.com",
+  projectId: "tcg-cards-market-chat",
+  storageBucket: "tcg-cards-market-chat.firebasestorage.app",
+  messagingSenderId: "904095739467",
+  appId: "1:904095739467:web:3453b6fe5b4ce67e0927ce",
+  measurementId: "G-MWNXW8C57C"
 };
 
 const app = initializeApp(firebaseConfig);
