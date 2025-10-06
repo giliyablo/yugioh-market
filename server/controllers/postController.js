@@ -6,55 +6,41 @@ const puppeteer = require('puppeteer');
 
 // --- Helper function to get TCGplayer market price ---
 const getMarketPrice = async (cardName) => {
+    let browser = null;
     try {
-        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '+'));
+        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, ' '));
         const searchUrl = `https://www.tcgplayer.com/search/yugioh/product?productLineName=yugioh&q=${formattedCardName}&view=grid`;
-        
+        console.log(`Fetching market price for: "${cardName}" from TCGplayer using Puppeteer`);
         console.log(formattedCardName);
         console.log(searchUrl);
-        console.log(`Fetching market price for: "${cardName}" from TCGplayer`);
 
-        const requestConfig = {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Referer': 'https://www.tcgplayer.com/'
-            },
-            timeout: 10000
-        };
+        browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
-        let html;
-        const res = await axios.get(searchUrl, requestConfig);
-        html = res.data;
-
-
-        const $ = cheerio.load(html);
-        console.log($.text());
-
-        const marketPriceElement = $('span.product-card__market-price--value');
-        console.log(marketPriceElement.text());
-
-        const marketPriceText = marketPriceElement.text().trim();
-        console.log(marketPriceText);
-
-        const priceText = parseFloat(marketPriceText.replace(/[^0-9.-]+/g, ""));
+        // Wait for the price element to be rendered by JavaScript
+        const priceSelector = 'span.product-card__market-price--value';
+        const priceElementText = await page.$eval(priceSelector, el => el.textContent);
+        const priceText = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
         console.log(priceText);
-
+        
         if (priceText) {
-            // Clean the text (e.g., "$15.45" -> 15.45)
             const price = parseFloat(priceText.replace('$', '').replace(',', ''));
             if (!isNaN(price)) {
                 return price;
             }
         }
-        
+
         console.warn(`Could not find a market price for "${cardName}" on the page.`);
         return null;
 
     } catch (error) {
         console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
         return null; // Return null if the scraping call fails
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
     }
 };
 
