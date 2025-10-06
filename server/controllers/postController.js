@@ -5,24 +5,30 @@ const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
 
 // --- Helper function to get TCGplayer market price ---
-const getMarketPrice = async (cardName) => {
-    let browser = null;
+const getMarketPrice = async (cardName, browserInstance = null) => {
+    let browser = browserInstance;
+    let page = null;
     try {
+        // If no browser is provided, we're in "single mode". Launch and manage our own.
+        if (!browser) {
+            browser = await puppeteer.launch();
+        }
+        page = await browser.newPage();
+        
         const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, ' '));
         const searchUrl = `https://www.tcgplayer.com/search/yugioh/product?productLineName=yugioh&q=${formattedCardName}&view=grid`;
-        console.log(`Fetching market price for: "${cardName}" from TCGplayer using Puppeteer`);
-        console.log(formattedCardName);
-        console.log(searchUrl);
+        // console.log(formattedCardName);
+        // console.log(searchUrl);
 
-        browser = await puppeteer.launch();
-        const page = await browser.newPage();
+        console.log(`Fetching market price for: "${cardName}" from TCGplayer using Puppeteer`);
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
         // Wait for the price element to be rendered by JavaScript
         const priceSelector = 'span.product-card__market-price--value';
+        await page.waitForSelector(priceSelector, { timeout: 15000 });
         const priceElementText = await page.$eval(priceSelector, el => el.textContent);
         const priceText = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
-        console.log(priceText);
+        // console.log(priceText);
 
         if (priceText) {
             return priceText;
@@ -128,6 +134,7 @@ const getCardImageFromYugipedia = async (cardName) => {
 
 // Export helper for routes that need it
 exports.getCardImageFromYugipedia = getCardImageFromYugipedia;
+exports.getMarketPrice = getMarketPrice;
 
 
 // --- Controller for GET /api/posts ---
@@ -200,7 +207,7 @@ exports.getAllPosts = async (req, res) => {
 
         // Backfill missing or placeholder images in the background and update the response
         const isPriceNull = (price) => !price || (url == "");
-        const backfillPrices = items.filter((p) => isPriceNull(p.price));
+        const backfillPrices = 0; // items.filter((p) => isPriceNull(p.price)); // 
         if (backfillPrices.length > 0) {
             await Promise.allSettled(backfillPrices.map(async (p) => {
                 const fetched = await getMarketPrice(p.cardName);
