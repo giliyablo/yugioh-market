@@ -1,14 +1,29 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, LogOut, PlusCircle, User, List } from 'lucide-react';
 import yuGiOhLogo from '../assets/yugioh_logo.png'; // Assume you have a logo image in src/assets
 
 const Navbar = () => {
   const { currentUser, loginWithGoogle, logout } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [cardQuery, setCardQuery] = useState(searchParams.get('q') || '');
+  const [userQuery, setUserQuery] = useState(searchParams.get('user') || '');
+  const [sort, setSort] = useState(searchParams.get('sort') || 'latest');
 
   const handleCreatePost = () => {
     document.getElementById('create_post_modal').showModal();
+  };
+
+  const applyFilters = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(window.location.search);
+    if (cardQuery) params.set('q', cardQuery); else params.delete('q');
+    if (userQuery) params.set('user', userQuery); else params.delete('user');
+    if (sort) params.set('sort', sort); else params.delete('sort');
+    params.delete('page'); // reset pagination when filters change
+    navigate({ pathname: '/', search: params.toString() });
   };
 
   return (
@@ -18,6 +33,34 @@ const Navbar = () => {
           <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Yu-Gi-Oh%21_Logo.svg" alt="Logo" className="h-8 mr-2"/>
           Market IL
         </Link>
+      </div>
+      <div className="navbar-center w-full max-w-3xl">
+        <form onSubmit={applyFilters} className="flex items-center gap-2 w-full">
+          <input
+            type="text"
+            placeholder="Search by card name"
+            className="input input-bordered input-sm w-full"
+            value={cardQuery}
+            onChange={(e) => setCardQuery(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Search by user"
+            className="input input-bordered input-sm w-48"
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+          />
+          <select
+            className="select select-bordered select-sm"
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+          >
+            <option value="latest">Latest</option>
+            <option value="cheapest">Cheapest</option>
+            <option value="alpha">A → Z</option>
+          </select>
+          <button className="btn btn-primary btn-sm" type="submit">Search</button>
+        </form>
       </div>
       <div className="navbar-end">
         {currentUser ? (
