@@ -14,7 +14,7 @@
   "postType": "sell",
   "price": 25,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -65,7 +65,7 @@
   "postType": "sell",
   "price": 120,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -116,7 +116,7 @@
   "postType": "sell",
   "price": 50,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -192,7 +192,7 @@
   "postType": "sell",
   "price": 90,
   "condition": "Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -318,7 +318,7 @@
   "postType": "sell",
   "price": 75,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -444,7 +444,7 @@
   "postType": "sell",
   "price": 10,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -720,7 +720,7 @@
   "postType": "sell",
   "price": 10,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1071,7 +1071,7 @@
   "postType": "sell",
   "price": 50,
   "condition": "Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1222,7 +1222,7 @@
   "postType": "sell",
   "price": 15,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1423,7 +1423,7 @@
   "postType": "sell",
   "price": 30,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1524,7 +1524,7 @@
   "postType": "sell",
   "price": 5,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1600,7 +1600,7 @@
   "postType": "sell",
   "price": 150,
   "condition": "Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -1676,7 +1676,7 @@
   "postType": "sell",
   "price": 60,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -2652,7 +2652,7 @@
   "postType": "sell",
   "price": 25,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -2928,7 +2928,7 @@
   "postType": "sell",
   "price": 10,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
@@ -2954,7 +2954,7 @@
   "postType": "sell",
   "price": 40,
   "condition": "Near Mint",
-  "cardImageUrl": "",
+  
   "isApiPrice": false,
   "isActive": true,
   "createdAt": {
