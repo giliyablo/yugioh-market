@@ -29,10 +29,30 @@ const getMarketPrice = async (cardName) => {
 // --- Helper to fetch card image from Yugipedia ---
 const getCardImageFromYugipedia = async (cardName) => {
     try {
-        const formattedCardName = String(cardName).trim().replace(/ /g, '_');
+        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '_'));
         const wikiUrl = `https://yugipedia.com/wiki/${formattedCardName}`;
-        const { data } = await axios.get(wikiUrl);
-        const $ = cheerio.load(data);
+        const requestConfig = {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://yugipedia.com/'
+            },
+            timeout: 10000
+        };
+
+        let html;
+        try {
+            const res = await axios.get(wikiUrl, requestConfig);
+            html = res.data;
+        } catch (err) {
+            // Retry with index.php style URL if direct path is blocked
+            const altUrl = `https://yugipedia.com/index.php?title=${formattedCardName}`;
+            const res2 = await axios.get(altUrl, requestConfig);
+            html = res2.data;
+        }
+
+        const $ = cheerio.load(html);
         const img = $('td.cardtable-cardimage a img');
         let imageUrl = '';
 
@@ -53,6 +73,12 @@ const getCardImageFromYugipedia = async (cardName) => {
             imageUrl = img.attr('src') || img.attr('data-src') || '';
         }
 
+        // Fallback to Open Graph image if still missing
+        if (!imageUrl) {
+            const og = $('meta[property="og:image"]').attr('content');
+            if (og) imageUrl = og;
+        }
+
         if (imageUrl) {
             // Normalize protocol-relative URLs
             if (imageUrl.startsWith('//')) {
@@ -62,14 +88,25 @@ const getCardImageFromYugipedia = async (cardName) => {
             if (imageUrl.startsWith('/')) {
                 imageUrl = `https://yugipedia.com${imageUrl}`;
             }
-            // Collapse any accidental double slashes after protocol
-            imageUrl = imageUrl.replace(/^https:\/\/(ms\.yugipedia\.com)\/\//, 'https://$1/');
+            // Some pages use protocol-relative with double slashes after the host; leave as-is or normalize if needed
+            // imageUrl = imageUrl.replace(/^https:\/\/(ms\.yugipedia\.com)\/\//, 'https://$1/');
             return imageUrl;
         }
         return null;
     } catch (error) {
         console.error(`Error scraping Yugipedia for card "${cardName}":`, error.message);
-        return null;
+        // Fallback to YGOPRODeck API image when Yugipedia blocks or fails
+        try {
+            const nameParam = encodeURIComponent(String(cardName).trim());
+            const resp = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
+            const img = resp?.data?.data?.[0]?.card_images?.[0]?.image_url_small
+                || resp?.data?.data?.[0]?.card_images?.[0]?.image_url
+                || null;
+            return img;
+        } catch (fallbackErr) {
+            console.error('Fallback YGOPRODeck failed:', fallbackErr.message);
+            return null;
+        }
     }
 };
 
