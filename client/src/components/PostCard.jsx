@@ -20,7 +20,7 @@ const PostCard = ({ post }) => {
         </div>
         <p className="text-xl font-bold my-2 flex items-center">
             <BadgeDollarSign size={20} className="mr-2" />
-            ₪{post.price}
+            ${post.price}
             {post.isApiPrice && <span className="badge badge-outline badge-xs ml-2">Market</span>}
         </p>
         <div className="card-actions justify-between items-center mt-2">

@@ -23,12 +23,9 @@ const getMarketPrice = async (cardName) => {
         const priceElementText = await page.$eval(priceSelector, el => el.textContent);
         const priceText = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
         console.log(priceText);
-        
+
         if (priceText) {
-            const price = parseFloat(priceText.replace('$', '').replace(',', ''));
-            if (!isNaN(price)) {
-                return price;
-            }
+            return priceText;
         }
 
         console.warn(`Could not find a market price for "${cardName}" on the page.`);
@@ -185,7 +182,7 @@ exports.getAllPosts = async (req, res) => {
         ]);
 
         // Backfill missing or placeholder images in the background and update the response
-        const isPlaceholder = (url) => !url || (typeof url === 'string' && url.includes('placehold.co'));
+        const isPlaceholder = (url) => !url || (typeof url === 'string' && (url.includes('placehold.co') || url == ""));
         const backfillTargets = items.filter((p) => isPlaceholder(p.cardImageUrl));
         if (backfillTargets.length > 0) {
             await Promise.allSettled(backfillTargets.map(async (p) => {
@@ -196,6 +193,23 @@ exports.getAllPosts = async (req, res) => {
                         p.cardImageUrl = fetched; // reflect in current response
                     } catch (e) {
                         console.error('Failed to persist backfilled image for', p._id.toString(), e.message);
+                    }
+                }
+            }));
+        }
+
+        // Backfill missing or placeholder images in the background and update the response
+        const isPriceNull = (price) => !price || (url == "");
+        const backfillPrices = items.filter((p) => isPriceNull(p.price));
+        if (backfillPrices.length > 0) {
+            await Promise.allSettled(backfillPrices.map(async (p) => {
+                const fetched = await getMarketPrice(p.cardName);
+                if (fetched) {
+                    try {
+                        await Post.updateOne({ _id: p._id }, { $set: { price: fetched } });
+                        p.price = fetched; // reflect in current response
+                    } catch (e) {
+                        console.error('Failed to persist backfilled price for', p._id.toString(), e.message);
                     }
                 }
             }));

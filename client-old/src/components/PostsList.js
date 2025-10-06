@@ -30,7 +30,7 @@ const PostsList = () => {
                 <div key={post.post_id} className="card-post">
                     <h3>{post.card_name}</h3>
                     <p>Type: {post.post_type}</p>
-                    <p>Price: ₪{post.price}</p>
+                    <p>Price: ${post.price}</p>
                     <p>Seller: {post.display_name}</p>
                     {/* Requirement 5: A "Contact Seller" button would appear here */}
                     {/* It would only be enabled for logged-in users and would reveal */}

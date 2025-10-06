@@ -124,7 +124,7 @@ const HomePage = () => {
                   </td>
                   <td className="whitespace-pre-wrap">{post.cardName}</td>
                   <td className="capitalize">{post.postType}</td>
-                  <td>{post.price !== undefined && post.price !== null ? `₪${Number(post.price).toFixed(2)}` : '-'}</td>
+                  <td>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</td>
                   <td>{post.condition}</td>
                   <td>{post.user?.displayName || '-'}</td>
                   <td>{post.user?.contact?.phoneNumber || '-'}</td>
@@ -133,7 +133,7 @@ const HomePage = () => {
                     {currentUser && post.user?.uid === currentUser.uid && (
                       <div className="flex gap-2">
                         <button className="btn btn-xs" onClick={async () => {
-                          const newPrice = prompt('New price (₪):', post.price ?? '');
+                          const newPrice = prompt('New price ($):', post.price ?? '');
                           if (newPrice === null) return;
                           try {
                             const { data } = await updatePost(post._id, { price: Number(newPrice) });
