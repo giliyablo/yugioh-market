@@ -206,8 +206,8 @@ exports.getAllPosts = async (req, res) => {
         }
 
         // Backfill missing or placeholder images in the background and update the response
-        const isPriceNull = (price) => !price || (url == "");
-        const backfillPrices = 0; // items.filter((p) => isPriceNull(p.price)); // 
+        const isPriceNull = (price) => !price || (url == 0) || (url == "");
+        const backfillPrices = items.filter((p) => isPriceNull(p.price)); // 0; // 
         if (backfillPrices.length > 0) {
             await Promise.allSettled(backfillPrices.map(async (p) => {
                 const fetched = await getMarketPrice(p.cardName);
