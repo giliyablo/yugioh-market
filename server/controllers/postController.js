@@ -1,6 +1,7 @@
 const Post = require('../models/Post');
 const axios = require('axios');
 const formidable = require('formidable');
+const cheerio = require('cheerio');
 
 // --- Helper function to get TCGplayer market price ---
 // NOTE: This is a simplified example. A real implementation needs proper API authentication.
@@ -24,6 +25,56 @@ const getMarketPrice = async (cardName) => {
         return null; // Return null if the API call fails
     }
 };
+
+// --- Helper to fetch card image from Yugipedia ---
+const getCardImageFromYugipedia = async (cardName) => {
+    try {
+        const formattedCardName = String(cardName).trim().replace(/ /g, '_');
+        const wikiUrl = `https://yugipedia.com/wiki/${formattedCardName}`;
+        const { data } = await axios.get(wikiUrl);
+        const $ = cheerio.load(data);
+        const img = $('td.cardtable-cardimage a img');
+        let imageUrl = '';
+
+        // Prefer srcset so we can choose a thumbnail size (e.g., 300px)
+        if (img.attr('srcset')) {
+            const entries = String(img.attr('srcset')).split(',').map(s => s.trim());
+            // Extract URL part before any space descriptor
+            const urls = entries.map(e => e.split(' ')[0]);
+            // Prefer a thumb with 300px width if available
+            const preferred = urls.find(u => /\/thumb\//.test(u) && /\/300px-/.test(u))
+                || urls.find(u => /\/thumb\//.test(u))
+                || urls[0];
+            if (preferred) imageUrl = preferred;
+        }
+
+        // Fallback to src/data-src if no suitable srcset URL
+        if (!imageUrl) {
+            imageUrl = img.attr('src') || img.attr('data-src') || '';
+        }
+
+        if (imageUrl) {
+            // Normalize protocol-relative URLs
+            if (imageUrl.startsWith('//')) {
+                imageUrl = `https:${imageUrl}`;
+            }
+            // If it's a relative path, prefix domain
+            if (imageUrl.startsWith('/')) {
+                imageUrl = `https://yugipedia.com${imageUrl}`;
+            }
+            // Collapse any accidental double slashes after protocol
+            imageUrl = imageUrl.replace(/^https:\/\/(ms\.yugipedia\.com)\/\//, 'https://$1/');
+            return imageUrl;
+        }
+        return null;
+    } catch (error) {
+        console.error(`Error scraping Yugipedia for card "${cardName}":`, error.message);
+        return null;
+    }
+};
+
+// Export helper for routes that need it
+exports.getCardImageFromYugipedia = getCardImageFromYugipedia;
 
 
 // --- Controller for GET /api/posts ---
@@ -77,6 +128,23 @@ exports.getAllPosts = async (req, res) => {
             Post.countDocuments(filter)
         ]);
 
+        // Backfill missing or placeholder images in the background and update the response
+        const isPlaceholder = (url) => !url || (typeof url === 'string' && url.includes('placehold.co'));
+        const backfillTargets = items.filter((p) => isPlaceholder(p.cardImageUrl));
+        if (backfillTargets.length > 0) {
+            await Promise.allSettled(backfillTargets.map(async (p) => {
+                const fetched = await getCardImageFromYugipedia(p.cardName);
+                if (fetched) {
+                    try {
+                        await Post.updateOne({ _id: p._id }, { $set: { cardImageUrl: fetched } });
+                        p.cardImageUrl = fetched; // reflect in current response
+                    } catch (e) {
+                        console.error('Failed to persist backfilled image for', p._id.toString(), e.message);
+                    }
+                }
+            }));
+        }
+
         res.json({
             items,
             total,
@@ -112,6 +180,11 @@ exports.createPost = async (req, res) => {
     }
 
     try {
+        let finalImageUrl = cardImageUrl;
+        if (!finalImageUrl) {
+            finalImageUrl = await getCardImageFromYugipedia(cardName);
+        }
+
         const newPost = new Post({
             user: {
                 uid,
@@ -125,7 +198,7 @@ exports.createPost = async (req, res) => {
             postType,
             price: finalPrice,
             condition,
-            cardImageUrl,
+            cardImageUrl: finalImageUrl,
             isApiPrice,
         });
 
@@ -192,13 +265,16 @@ exports.createPostsFromList = async (req, res) => {
                 isApiPrice = finalPrice !== null;
             }
 
+            let imageUrl = await getCardImageFromYugipedia(cardName);
+
             const newPost = new Post({
                 user: { uid, displayName },
                 cardName,
                 postType,
                 price: finalPrice === undefined ? undefined : Number(finalPrice),
                 condition,
-                isApiPrice: Boolean(isApiPrice)
+                isApiPrice: Boolean(isApiPrice),
+                cardImageUrl: imageUrl || undefined
             });
             const saved = await newPost.save();
             created.push(saved);
