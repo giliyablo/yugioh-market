@@ -31,6 +31,7 @@ const getCardImageFromYugipedia = async (cardName) => {
     try {
         const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '_'));
         const wikiUrl = `https://yugipedia.com/wiki/${formattedCardName}`;
+        
         const requestConfig = {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
@@ -118,11 +119,11 @@ exports.getCardImageFromYugipedia = getCardImageFromYugipedia;
 exports.getAllPosts = async (req, res) => {
     try {
         const {
-            q,               // search by card name (partial, case-insensitive)
-            user,            // search by user uid or displayName (partial)
+            q,              // search by card name (partial, case-insensitive)
+            user,           // search by user uid or displayName (partial)
             sort = 'latest', // latest | cheapest | alpha
-            sortBy,          // optional: field name to sort by
-            sortDir,         // optional: asc | desc
+            sortBy,         // optional: field name to sort by
+            sortDir,        // optional: asc | desc
             page = 1,
             limit = 20
         } = req.query;
@@ -198,7 +199,7 @@ exports.getAllPosts = async (req, res) => {
 // --- Controller for POST /api/posts ---
 exports.createPost = async (req, res) => {
     const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
-    const { uid, displayName } = req.user; // From authMiddleware
+    const { uid, name: displayName } = req.user; // From authMiddleware
 
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
@@ -281,7 +282,7 @@ exports.createBatchPosts = async (req, res) => {
 // fetch a price per card; if 'fixed', use provided fixedPrice; if 'none', leave empty.
 exports.createPostsFromList = async (req, res) => {
     try {
-        const { uid, displayName } = req.user;
+        const { uid, name: displayName } = req.user;
         const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
         if (!Array.isArray(cardNames) || cardNames.length === 0) {
@@ -323,3 +324,23 @@ exports.createPostsFromList = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+// --- NEW FUNCTION: Web Scraper for Card Image ---
+exports.getCardImageFromWiki = async (req, res) => {
+    const { cardName } = req.body;
+    if (!cardName) {
+        return res.status(400).json({ message: 'Card name is required.' });
+    }
+
+    try {
+        const imageUrl = await getCardImageFromYugipedia(cardName);
+        if (imageUrl) {
+            res.status(200).json({ imageUrl });
+        } else {
+            res.status(404).json({ message: 'Image not found for the specified card.' });
+        }
+    } catch (error) {
+        // The helper function already logs the detailed error.
+        res.status(500).json({ message: 'An error occurred while fetching the card image.' });
+    }
+};
+

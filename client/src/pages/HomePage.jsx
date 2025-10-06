@@ -111,7 +111,7 @@ const HomePage = () => {
                     <img
                       src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
                       alt={post.cardName}
-                      className="w-12 h-16 object-cover rounded"
+                      className="w-8 h-12 object-cover rounded"
                     />
                   </td>
                   <td className="whitespace-pre-wrap">{post.cardName}</td>
