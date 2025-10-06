@@ -4,7 +4,9 @@ const {
     getAllPosts,
     createPost,
     createBatchPosts,
-    createPostsFromList
+    createPostsFromList,
+    updatePost,
+    deletePost
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -28,6 +30,15 @@ router.post('/batch', authMiddleware, createBatchPosts);
 // @desc    Create multiple posts from a list of card names
 // @access  Private (Requires authentication)
 router.post('/batch-list', authMiddleware, createPostsFromList);
+// @route   PUT /api/posts/:id
+// @desc    Update a post (owner only)
+// @access  Private
+router.put('/:id', authMiddleware, updatePost);
+
+// @route   DELETE /api/posts/:id
+// @desc    Delete a post (owner only)
+// @access  Private
+router.delete('/:id', authMiddleware, deletePost);
 
 // @route   GET /api/posts/image
 // @desc    Returns an image URL for a given card name by scraping Yugipedia

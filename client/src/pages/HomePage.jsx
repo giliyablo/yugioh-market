@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { getPosts } from '../services/api';
+import { getPosts, updatePost, deletePost } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import CreatePostModal from '../components/CreatePostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -15,6 +16,7 @@ const HomePage = () => {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -39,7 +41,7 @@ const HomePage = () => {
       }
     };
     fetchPosts();
-  }, [searchParams, limit]);
+  }, [searchParams, limit, sortBy, sortDir]);
 
   const handlePostCreated = (newPost) => {
     setPosts([newPost, ...posts]);
@@ -94,14 +96,15 @@ const HomePage = () => {
         <table className="table table-zebra">
           <thead>
             <tr>
-              <th>Card</th>
+              <th><SortHeader label="Card" column="cardImageUrl" /></th>
               <th><SortHeader label="Name" column="cardName" /></th>
               <th><SortHeader label="Type" column="postType" /></th>
               <th><SortHeader label="Price" column="price" /></th>
               <th><SortHeader label="Condition" column="condition" /></th>
               <th><SortHeader label="User" column="user.displayName" /></th>
-              <th>Phone</th>
+              <th><SortHeader label="Phone" column="user.contact.phoneNumber" /></th>
               <th><SortHeader label="Created" column="createdAt" /></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -126,6 +129,27 @@ const HomePage = () => {
                   <td>{post.user?.displayName || '-'}</td>
                   <td>{post.user?.contact?.phoneNumber || '-'}</td>
                   <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
+                  <td>
+                    {currentUser && post.user?.uid === currentUser.uid && (
+                      <div className="flex gap-2">
+                        <button className="btn btn-xs" onClick={async () => {
+                          const newPrice = prompt('New price (₪):', post.price ?? '');
+                          if (newPrice === null) return;
+                          try {
+                            const { data } = await updatePost(post._id, { price: Number(newPrice) });
+                            setPosts(posts.map(p => p._id === post._id ? data : p));
+                          } catch (e) { console.error(e); }
+                        }}>Edit</button>
+                        <button className="btn btn-xs btn-error" onClick={async () => {
+                          if (!confirm('Delete this post?')) return;
+                          try {
+                            await deletePost(post._id);
+                            setPosts(posts.filter(p => p._id !== post._id));
+                          } catch (e) { console.error(e); }
+                        }}>Delete</button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ))
             ) : (

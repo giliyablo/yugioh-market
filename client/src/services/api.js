@@ -34,4 +34,7 @@ export const createBatchPosts = (formData) => api.post('/posts/batch', formData,
 
 export const createPostsFromList = (payload) => api.post('/posts/batch-list', payload);
 
+export const updatePost = (id, payload) => api.put(`/posts/${id}`, payload);
+export const deletePost = (id) => api.delete(`/posts/${id}`);
+
 export default api;

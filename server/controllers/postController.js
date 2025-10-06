@@ -146,7 +146,7 @@ exports.getAllPosts = async (req, res) => {
         let sortSpec = { createdAt: -1 }; // default latest
         if (sortBy) {
             const dir = (String(sortDir).toLowerCase() === 'asc') ? 1 : -1;
-            const allowed = new Set(['createdAt','price','cardName','postType','condition','user.displayName']);
+            const allowed = new Set(['createdAt','price','cardName','postType','condition','user.displayName','user.contact.phoneNumber']);
             if (allowed.has(sortBy)) {
                 sortSpec = { [sortBy]: dir };
             }
@@ -199,7 +199,8 @@ exports.getAllPosts = async (req, res) => {
 // --- Controller for POST /api/posts ---
 exports.createPost = async (req, res) => {
     const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
-    const { uid, name: displayName } = req.user; // From authMiddleware
+    const { uid } = req.user; // From authMiddleware
+    const displayName = req.user.displayName || req.user.name || req.user.email || 'User';
 
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
@@ -223,13 +224,16 @@ exports.createPost = async (req, res) => {
             finalImageUrl = await getCardImageFromYugipedia(cardName);
         }
 
+        const email = contactEmail || req.user.email || null;
+        const phoneNumber = contactPhone || req.user.phoneNumber || null;
+
         const newPost = new Post({
             user: {
                 uid,
                 displayName,
                 contact: {
-                    email: contactEmail,
-                    phoneNumber: contactPhone
+                    email,
+                    phoneNumber
                 }
             },
             cardName,
@@ -282,7 +286,8 @@ exports.createBatchPosts = async (req, res) => {
 // fetch a price per card; if 'fixed', use provided fixedPrice; if 'none', leave empty.
 exports.createPostsFromList = async (req, res) => {
     try {
-        const { uid, name: displayName } = req.user;
+        const { uid } = req.user;
+        const displayName = req.user.displayName || req.user.name || req.user.email || 'User';
         const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
         if (!Array.isArray(cardNames) || cardNames.length === 0) {
@@ -305,6 +310,9 @@ exports.createPostsFromList = async (req, res) => {
 
             let imageUrl = await getCardImageFromYugipedia(cardName);
 
+            const email = req.user.email || null;
+            const phoneNumber = req.user.phoneNumber || null;
+
             const newPost = new Post({
                 user: { uid, displayName },
                 cardName,
@@ -314,6 +322,7 @@ exports.createPostsFromList = async (req, res) => {
                 isApiPrice: Boolean(isApiPrice),
                 cardImageUrl: imageUrl || undefined
             });
+            newPost.user.contact = { email, phoneNumber };
             const saved = await newPost.save();
             created.push(saved);
         }
@@ -322,6 +331,49 @@ exports.createPostsFromList = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
+    }
+};
+
+// --- Controller for PUT /api/posts/:id ---
+exports.updatePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { uid } = req.user;
+        const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
+        const update = {};
+        for (const key of allowedFields) {
+            if (Object.prototype.hasOwnProperty.call(req.body, key)) {
+                update[key] = req.body[key];
+            }
+        }
+
+        const post = await Post.findById(id);
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        Object.assign(post, update);
+        const saved = await post.save();
+        return res.json(saved);
+    } catch (err) {
+        console.error(err.message);
+        return res.status(500).send('Server Error');
+    }
+};
+
+// --- Controller for DELETE /api/posts/:id ---
+exports.deletePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { uid } = req.user;
+        const post = await Post.findById(id);
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        await Post.deleteOne({ _id: id });
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error(err.message);
+        return res.status(500).send('Server Error');
     }
 };
 // --- NEW FUNCTION: Web Scraper for Card Image ---
