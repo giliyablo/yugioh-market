@@ -34,7 +34,7 @@ const Navbar = () => {
           Market IL
         </Link>
       </div>
-      <div className="navbar-center w-full max-w-3xl">
+      <div className="navbar-center w-full max-w-4xl">
         <form onSubmit={applyFilters} className="flex items-center gap-2 w-full">
           <input
             type="text"

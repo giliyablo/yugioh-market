@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPosts } from '../services/api';
 import CreatePostModal from '../components/CreatePostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const HomePage = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
+  const [sortDir, setSortDir] = useState(searchParams.get('sortDir') || '');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -19,6 +22,8 @@ const HomePage = () => {
         const params = Object.fromEntries(searchParams.entries());
         const res = await getPosts({
           ...params,
+          sortBy: params.sortBy || sortBy || undefined,
+          sortDir: params.sortDir || sortDir || undefined,
           page: params.page ? Number(params.page) : 1,
           limit
         });
@@ -48,6 +53,40 @@ const HomePage = () => {
     return <div className="text-center text-red-500 mt-20">{error}</div>;
   }
 
+  const cycleSort = (column) => {
+    // cycles: none -> asc -> desc -> none
+    let nextBy = sortBy;
+    let nextDir = sortDir;
+    if (sortBy !== column) {
+      nextBy = column; nextDir = 'asc';
+    } else if (sortDir === 'asc') {
+      nextDir = 'desc';
+    } else if (sortDir === 'desc') {
+      nextBy = ''; nextDir = '';
+    } else {
+      nextDir = 'asc';
+    }
+
+    setSortBy(nextBy);
+    setSortDir(nextDir);
+    const params = new URLSearchParams(window.location.search);
+    if (nextBy) params.set('sortBy', nextBy); else params.delete('sortBy');
+    if (nextDir) params.set('sortDir', nextDir); else params.delete('sortDir');
+    params.delete('page');
+    navigate({ pathname: '/', search: params.toString() });
+  };
+
+  const SortHeader = ({ label, column }) => {
+    const active = sortBy === column;
+    const dir = active ? sortDir : '';
+    const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
+    return (
+      <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
+        {label} {icon}
+      </button>
+    );
+  };
+
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">Posts</h1>
@@ -56,12 +95,12 @@ const HomePage = () => {
           <thead>
             <tr>
               <th>Card</th>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Price</th>
-              <th>Condition</th>
-              <th>User</th>
-              <th>Created</th>
+              <th><SortHeader label="Name" column="cardName" /></th>
+              <th><SortHeader label="Type" column="postType" /></th>
+              <th><SortHeader label="Price" column="price" /></th>
+              <th><SortHeader label="Condition" column="condition" /></th>
+              <th><SortHeader label="User" column="user.displayName" /></th>
+              <th><SortHeader label="Created" column="createdAt" /></th>
             </tr>
           </thead>
           <tbody>

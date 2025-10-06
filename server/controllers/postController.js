@@ -33,6 +33,8 @@ exports.getAllPosts = async (req, res) => {
             q,               // search by card name (partial, case-insensitive)
             user,            // search by user uid or displayName (partial)
             sort = 'latest', // latest | cheapest | alpha
+            sortBy,          // optional: field name to sort by
+            sortDir,         // optional: asc | desc
             page = 1,
             limit = 20
         } = req.query;
@@ -53,10 +55,18 @@ exports.getAllPosts = async (req, res) => {
         }
 
         let sortSpec = { createdAt: -1 }; // default latest
-        if (sort === 'cheapest') {
-            sortSpec = { price: 1, createdAt: -1 };
-        } else if (sort === 'alpha') {
-            sortSpec = { cardName: 1 };
+        if (sortBy) {
+            const dir = (String(sortDir).toLowerCase() === 'asc') ? 1 : -1;
+            const allowed = new Set(['createdAt','price','cardName','postType','condition','user.displayName']);
+            if (allowed.has(sortBy)) {
+                sortSpec = { [sortBy]: dir };
+            }
+        } else {
+            if (sort === 'cheapest') {
+                sortSpec = { price: 1, createdAt: -1 };
+            } else if (sort === 'alpha') {
+                sortSpec = { cardName: 1 };
+            }
         }
 
         const [items, total] = await Promise.all([
