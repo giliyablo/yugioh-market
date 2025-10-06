@@ -29,9 +29,51 @@ const getMarketPrice = async (cardName) => {
 // --- Controller for GET /api/posts ---
 exports.getAllPosts = async (req, res) => {
     try {
-        // Find all active posts and sort them by creation date, newest first
-        const posts = await Post.find({ isActive: true }).sort({ createdAt: -1 });
-        res.json(posts);
+        const {
+            q,               // search by card name (partial, case-insensitive)
+            user,            // search by user uid or displayName (partial)
+            sort = 'latest', // latest | cheapest | alpha
+            page = 1,
+            limit = 20
+        } = req.query;
+
+        const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+        const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+
+        const filter = { isActive: true };
+        if (q && typeof q === 'string') {
+            filter.cardName = { $regex: q, $options: 'i' };
+        }
+        if (user && typeof user === 'string') {
+            // Match either uid exactly or displayName partially (case-insensitive)
+            filter.$or = [
+                { 'user.uid': user },
+                { 'user.displayName': { $regex: user, $options: 'i' } }
+            ];
+        }
+
+        let sortSpec = { createdAt: -1 }; // default latest
+        if (sort === 'cheapest') {
+            sortSpec = { price: 1, createdAt: -1 };
+        } else if (sort === 'alpha') {
+            sortSpec = { cardName: 1 };
+        }
+
+        const [items, total] = await Promise.all([
+            Post.find(filter)
+                .sort(sortSpec)
+                .skip((pageNum - 1) * pageSize)
+                .limit(pageSize),
+            Post.countDocuments(filter)
+        ]);
+
+        res.json({
+            items,
+            total,
+            page: pageNum,
+            limit: pageSize,
+            totalPages: Math.ceil(total / pageSize)
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -112,4 +154,49 @@ exports.createBatchPosts = async (req, res) => {
             msg: 'Batch upload received and is being processed. This feature is a work in progress.' 
         });
     });
+};
+
+// --- Controller for POST /api/posts/batch-list ---
+// Accepts a list of card names and creates posts. If priceMode === 'market',
+// fetch a price per card; if 'fixed', use provided fixedPrice; if 'none', leave empty.
+exports.createPostsFromList = async (req, res) => {
+    try {
+        const { uid, displayName } = req.user;
+        const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
+
+        if (!Array.isArray(cardNames) || cardNames.length === 0) {
+            return res.status(400).json({ msg: 'cardNames must be a non-empty array.' });
+        }
+
+        const created = [];
+        for (const rawName of cardNames) {
+            const cardName = String(rawName).trim();
+            if (!cardName) continue;
+
+            let finalPrice = undefined;
+            let isApiPrice = false;
+            if (priceMode === 'fixed' && fixedPrice !== undefined && fixedPrice !== null && fixedPrice !== '') {
+                finalPrice = Number(fixedPrice);
+            } else if (priceMode === 'market') {
+                finalPrice = await getMarketPrice(cardName);
+                isApiPrice = finalPrice !== null;
+            }
+
+            const newPost = new Post({
+                user: { uid, displayName },
+                cardName,
+                postType,
+                price: finalPrice === undefined ? undefined : Number(finalPrice),
+                condition,
+                isApiPrice: Boolean(isApiPrice)
+            });
+            const saved = await newPost.save();
+            created.push(saved);
+        }
+
+        res.status(201).json({ count: created.length, items: created });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
 };

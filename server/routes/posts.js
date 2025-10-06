@@ -3,7 +3,8 @@ const router = express.Router();
 const {
     getAllPosts,
     createPost,
-    createBatchPosts
+    createBatchPosts,
+    createPostsFromList
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -22,5 +23,10 @@ router.post('/', authMiddleware, createPost);
 // @access  Private (Requires authentication)
 // Note: This is a complex endpoint and the controller has a placeholder implementation.
 router.post('/batch', authMiddleware, createBatchPosts);
+
+// @route   POST /api/posts/batch-list
+// @desc    Create multiple posts from a list of card names
+// @access  Private (Requires authentication)
+router.post('/batch-list', authMiddleware, createPostsFromList);
 
 module.exports = router;

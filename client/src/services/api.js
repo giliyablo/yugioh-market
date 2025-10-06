@@ -24,12 +24,14 @@ api.interceptors.request.use(
 );
 
 // --- Post Functions ---
-export const getPosts = () => api.get('/posts');
+export const getPosts = (params) => api.get('/posts', { params });
 export const createPost = (postData) => api.post('/posts', postData);
 export const createBatchPosts = (formData) => api.post('/posts/batch', formData, {
   headers: {
     'Content-Type': 'multipart/form-data',
   }
 });
+
+export const createPostsFromList = (payload) => api.post('/posts/batch-list', payload);
 
 export default api;
