@@ -100,6 +100,7 @@ const HomePage = () => {
               <th><SortHeader label="Price" column="price" /></th>
               <th><SortHeader label="Condition" column="condition" /></th>
               <th><SortHeader label="User" column="user.displayName" /></th>
+              <th>Phone</th>
               <th><SortHeader label="Created" column="createdAt" /></th>
             </tr>
           </thead>
@@ -111,7 +112,11 @@ const HomePage = () => {
                     <img
                       src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
                       alt={post.cardName}
-                      className="w-8 h-12 object-cover rounded"
+                      loading="lazy"
+                      width={160}
+                      height={240}
+                      className="object-cover rounded"
+                      style={{ width: '160px', height: '240px' }}
                     />
                   </td>
                   <td className="whitespace-pre-wrap">{post.cardName}</td>
@@ -119,6 +124,7 @@ const HomePage = () => {
                   <td>{post.price !== undefined && post.price !== null ? `₪${Number(post.price).toFixed(2)}` : '-'}</td>
                   <td>{post.condition}</td>
                   <td>{post.user?.displayName || '-'}</td>
+                  <td>{post.user?.contact?.phoneNumber || '-'}</td>
                   <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                 </tr>
               ))
