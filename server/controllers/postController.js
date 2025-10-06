@@ -2,27 +2,59 @@ const Post = require('../models/Post');
 const axios = require('axios');
 const formidable = require('formidable');
 const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 
 // --- Helper function to get TCGplayer market price ---
-// NOTE: This is a simplified example. A real implementation needs proper API authentication.
 const getMarketPrice = async (cardName) => {
     try {
-        // In a real scenario, you'd implement OAuth2 to get a bearer token for TCGplayer's API.
-        // This is a placeholder for the logic.
-        console.log(`Fetching market price for: ${cardName}`);
+        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '+'));
+        const searchUrl = `https://www.tcgplayer.com/search/yugioh/product?productLineName=yugioh&q=${formattedCardName}&view=grid`;
         
-        // This endpoint is fictional. You need to use the actual TCGplayer API structure.
-        // const response = await axios.get(`https://api.tcgplayer.com/v1.39.0/pricing/product/${productId}`, {
-        //     headers: { 'Authorization': `Bearer YOUR_ACCESS_TOKEN` }
-        // });
+        console.log(formattedCardName);
+        console.log(searchUrl);
+        console.log(`Fetching market price for: "${cardName}" from TCGplayer`);
+
+        const requestConfig = {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Referer': 'https://www.tcgplayer.com/'
+            },
+            timeout: 10000
+        };
+
+        let html;
+        const res = await axios.get(searchUrl, requestConfig);
+        html = res.data;
+
+
+        const $ = cheerio.load(html);
+        console.log($.text());
+
+        const marketPriceElement = $('span.product-card__market-price--value');
+        console.log(marketPriceElement.text());
+
+        const marketPriceText = marketPriceElement.text().trim();
+        console.log(marketPriceText);
+
+        const priceText = parseFloat(marketPriceText.replace(/[^0-9.-]+/g, ""));
+        console.log(priceText);
+
+        if (priceText) {
+            // Clean the text (e.g., "$15.45" -> 15.45)
+            const price = parseFloat(priceText.replace('$', '').replace(',', ''));
+            if (!isNaN(price)) {
+                return price;
+            }
+        }
         
-        // Returning a random price for demonstration purposes.
-        const randomPrice = (Math.random() * (50 - 1) + 1).toFixed(2);
-        return randomPrice;
+        console.warn(`Could not find a market price for "${cardName}" on the page.`);
+        return null;
 
     } catch (error) {
-        console.error("Failed to fetch card price from TCGplayer API:", error.message);
-        return null; // Return null if the API call fails
+        console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
+        return null; // Return null if the scraping call fails
     }
 };
 
