@@ -1,57 +1,49 @@
 require('dotenv').config();
 const express = require('express');
-const http = require('http');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const admin = require('firebase-admin');
-const postRoutes = require('./routes/posts');
-const { initSocket } = require('./services/socket');
 
-// --- Firebase Admin SDK ---
+// --- Initialize Firebase Admin SDK ---
+// This allows the server to verify user tokens
 try {
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
     });
-    console.log("Firebase Admin initialized.");
+    console.log("Firebase Admin SDK initialized successfully.");
 } catch (error) {
-    console.error("Firebase Admin init error:", error);
+    console.error("Error initializing Firebase Admin SDK:", error);
     process.exit(1);
 }
 
-// --- Express App ---
+// --- Initialize Express App ---
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // --- Middleware ---
-app.use(cors({
-    origin: 'http://localhost:5173',
-    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type','Authorization'],
-    credentials: true
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // Allows requests from your frontend
+app.use(express.json()); // Parses incoming JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parses URL-encoded bodies
 
-// --- Routes ---
-app.use('/api/posts', postRoutes);
-
-// --- Root route ---
-app.get('/', (req, res) => res.send('Yu-Gi-Oh! Marketplace API running!'));
-
-// --- MongoDB ---
+// --- Database Connection ---
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("MongoDB connected."))
+    .then(() => console.log("MongoDB connected successfully."))
     .catch(err => {
         console.error("MongoDB connection error:", err);
         process.exit(1);
     });
 
-// --- HTTP server + Socket.IO ---
-const server = http.createServer(app);
-initSocket(server);
+// --- API Routes ---
+// All routes related to posts will be prefixed with /api/posts
+app.use('/api/posts', require('./routes/posts'));
 
-// --- Start server ---
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// --- Root Route ---
+app.get('/', (req, res) => {
+    res.send('Yu-Gi-Oh! Marketplace API is running!');
+});
 
-module.exports = { server, admin };
+// --- Start Server ---
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
