@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import { Info } from 'lucide-react';
 import './HomePage.css'; // Import the new custom CSS
 
-const HomePage = () => {
+const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
@@ -50,6 +50,7 @@ const HomePage = () => {
 
     const handlePostCreated = (newPost) => {
         setPosts(prevPosts => [newPost, ...prevPosts]);
+        onCloseCreateModal(); // Also close modal on success
     };
 
     const handlePostUpdate = (updatedPost) => {
@@ -219,7 +220,13 @@ const HomePage = () => {
                 </div>
             </div>
             
-            <CreatePostModal onPostCreated={handlePostCreated} />
+            {isCreateModalOpen && (
+                <CreatePostModal 
+                    onClose={onCloseCreateModal} 
+                    onPostCreated={handlePostCreated} 
+                />
+            )}
+
             {editingPost && (
                 <EditPostModal
                     key={editingPost._id}

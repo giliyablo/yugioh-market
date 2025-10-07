@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, LogOut, PlusCircle, List, Search } from 'lucide-react';
-import './Navbar.css'; // Import the new navbar-specific CSS
-import '../pages/HomePage.css'; // Re-use general styles for buttons/inputs
+import './Navbar.css';
+import '../pages/HomePage.css';
 
-const Navbar = () => {
+const Navbar = ({ onOpenCreateModal }) => {
     const { currentUser, loginWithGoogle, logout } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -17,7 +17,7 @@ const Navbar = () => {
         if (!currentUser) {
             loginWithGoogle();
         } else {
-            document.getElementById('create_post_modal').showModal();
+            onOpenCreateModal();
         }
     };
 
@@ -27,7 +27,7 @@ const Navbar = () => {
         if (cardQuery) params.set('q', cardQuery); else params.delete('q');
         if (userQuery) params.set('user', userQuery); else params.delete('user');
         if (sort) params.set('sort', sort); else params.delete('sort');
-        params.delete('page'); // reset pagination when filters change
+        params.delete('page');
         navigate({ pathname: '/', search: params.toString() });
     };
 

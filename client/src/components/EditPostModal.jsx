@@ -12,20 +12,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
     useEffect(() => {
         setFormData(post);
     }, [post]);
-
-    useEffect(() => {
-        const modal = document.getElementById(`edit_post_modal_${post._id}`);
-        if (modal) {
-            modal.showModal();
-        }
-        // Cleanup function to close the modal if the component unmounts
-        return () => {
-            if (modal && modal.open) {
-                modal.close();
-            }
-        };
-    }, [post._id]);
-
+	
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
@@ -45,14 +32,12 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                 postType: formData.postType,
                 price: formData.price,
                 condition: formData.condition,
-                cardImageUrl: formData.cardImageUrl,
-                contactEmail: currentUser.email,
-                contactPhone: currentUser.phoneNumber,
+                cardImageUrl: formData.cardImageUrl
             };
 
             const { data } = await updatePost(post._id, updatePayload);
-            onUpdate(data);
-            onClose(); // This will trigger the modal to be removed from the DOM
+            onUpdate(data); // This will update the post in the parent and close the modal
+																				
         } catch (err) {
             setError('Failed to update post.');
             console.error(err);
@@ -60,13 +45,10 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
             setLoading(false);
         }
     };
-
-    // Use a unique ID for each modal instance to prevent conflicts
-    const modalId = `edit_post_modal_${post._id}`;
-
+	
     return (
-        <dialog id={modalId} className="modal-overlay" onClose={onClose}>
-            <div className="modal-content">
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <button type="button" className="modal-close-button" onClick={onClose}>
                     ✕
                 </button>
@@ -77,7 +59,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                     <input
                         type="text"
                         name="cardName"
-                        placeholder="Card Name (e.g., Blue-Eyes White Dragon)"
+                        placeholder="Card Name"
                         className="form-input"
                         value={formData.cardName || ''}
                         onChange={handleChange}
@@ -97,7 +79,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                     <input
                         type="number"
                         name="price"
-                        placeholder="Price in ₪ (leave blank for market price)"
+                        placeholder="Price in $ (leave blank for market price)"
                         className="form-input"
                         value={formData.price || ''}
                         onChange={handleChange}
@@ -135,7 +117,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                     </div>
                 </form>
             </div>
-        </dialog>
+        </div>
     );
 };
 

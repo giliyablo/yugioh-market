@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPost, createPostsFromList } from '../services/api';
 import './Modal.css'; // Import the new modal-specific CSS
 
-const CreatePostModal = ({ onPostCreated }) => {
+const CreatePostModal = ({ onClose, onPostCreated }) => {
     const { currentUser } = useAuth();
     const [formData, setFormData] = useState({
         cardName: '',
@@ -60,7 +60,10 @@ const CreatePostModal = ({ onPostCreated }) => {
                     }
                 }
             }
-            document.getElementById('create_post_modal').close();
+            
+            onClose(); // Close the modal on success
+            
+            // Clear the form
             setFormData({ cardName: '', postType: 'sell', price: '', condition: 'Near Mint', cardImageUrl: '' });
             setBatchText('');
             setFixedPrice('');
@@ -74,11 +77,11 @@ const CreatePostModal = ({ onPostCreated }) => {
     };
 
     return (
-        <dialog id="create_post_modal" className="modal-overlay">
+        <div className="modal-overlay">
             <div className="modal-content">
-                <form method="dialog">
-                    <button className="modal-close-button">✕</button>
-                </form>
+									  
+                <button className="modal-close-button" onClick={onClose}>✕</button>
+					   
                 <h3 className="modal-title">Create a New Post</h3>
                 <form onSubmit={handleSubmit} className="modal-form">
                     <div className="form-toggle">
@@ -137,7 +140,7 @@ const CreatePostModal = ({ onPostCreated }) => {
                     </div>
                 </form>
             </div>
-        </dialog>
+        </div>
     );
 };
 

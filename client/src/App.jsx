@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
@@ -8,26 +8,36 @@ import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
+  // State to manage the create post modal's visibility
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-base-200">
-          <Navbar />
-          <main className="container mx-auto p-4 md:p-8">
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route 
-                path="/my-posts" 
-                element={
-                  <ProtectedRoute>
-                    <MyPostsPage />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route path="*" element={<NotFoundPage />} />
-            </Routes>
-          </main>
-        </div>
+        {/* Pass the function to open the modal to the Navbar */}
+        <Navbar onOpenCreateModal={() => setIsCreateModalOpen(true)} />
+        <main>
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                <HomePage 
+                  isCreateModalOpen={isCreateModalOpen}
+                  onCloseCreateModal={() => setIsCreateModalOpen(false)}
+                />
+              } 
+            />
+            <Route 
+              path="/my-posts" 
+              element={
+                <ProtectedRoute>
+                  <MyPostsPage />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </main>
       </Router>
     </AuthProvider>
   );
