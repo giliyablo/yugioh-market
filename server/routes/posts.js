@@ -3,7 +3,6 @@ const router = express.Router();
 const {
     getAllPosts,
     createPost,
-    createBatchPosts,
     createPostsFromList,
     updatePost,
     deletePost,
@@ -25,11 +24,6 @@ router.get('/my-posts', authMiddleware, getMyPosts);
 // @desc    Create a single new post
 // @access  Private
 router.post('/', authMiddleware, createPost);
-
-// @route   POST /api/posts/batch
-// @desc    Create multiple posts from a file upload (Placeholder)
-// @access  Private
-router.post('/batch', authMiddleware, createBatchPosts);
 
 // @route   POST /api/posts/batch-list
 // @desc    Create multiple posts from a list of card names

@@ -1,19 +1,17 @@
 const Post = require('../models/Post');
-const { 
-    initiatePriceAndImageFetch 
-} = require('../services/backgroundScraper'); // We will create this new service file
+const { initiatePriceAndImageFetch } = require('../services/backgroundScraper');
 
-// --- Controller for POST /api/posts ---
-// Creates a post instantly and starts background jobs for price/image fetching.
+// --- Create Single Post ---
 exports.createPost = async (req, res) => {
+    if (!req.user) return res.status(401).json({ msg: 'Unauthorized: user info missing.' });
+
     const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
     const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
     const displayName = name || userEmail || 'User';
 
-    if (!cardName || !postType) {
+    if (!cardName || !postType)
         return res.status(400).json({ msg: 'Card name and post type are required.' });
-    }
-    
+
     try {
         const newPost = new Post({
             user: {
@@ -26,46 +24,40 @@ exports.createPost = async (req, res) => {
             },
             cardName,
             postType,
-            // Price is initially null or the user-provided one.
-            price: price || null, 
+            price: price || null,
             condition,
-            // Image is initially null or the user-provided one.
-            cardImageUrl: cardImageUrl || null, 
-            isApiPrice: !!price ? false : true, // It's an API price if the user didn't provide one
+            cardImageUrl: cardImageUrl || null,
+            isApiPrice: !price,
         });
 
         const post = await newPost.save();
-
-        // Respond to the client immediately with the newly created post.
         res.status(201).json(post);
 
-        // --- Start Background Task ---
-        // Now, start the slow scraping process in the background. We don't wait for this.
-        initiatePriceAndImageFetch(post._id, cardName);
+        // Run in background safely
+        initiatePriceAndImageFetch(post._id, cardName)
+            .catch(err => console.error(`Background fetch failed for ${cardName}:`, err));
 
     } catch (err) {
-        console.error('Create Post Error:', err.message);
-        res.status(500).send('Server Error');
+        console.error('Create Post Error:', err);
+        res.status(500).json({ msg: 'Internal server error', error: err.message });
     }
 };
 
-// --- Controller for POST /api/posts/batch-list ---
-// Creates multiple posts instantly and starts background jobs for each.
+// --- Batch Create Posts ---
 exports.createPostsFromList = async (req, res) => {
+    if (!req.user) return res.status(401).json({ msg: 'Unauthorized: user info missing.' });
+
     const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
     const displayName = name || userEmail || 'User';
     const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
-    if (!Array.isArray(cardNames) || cardNames.length === 0) {
+    if (!Array.isArray(cardNames) || cardNames.length === 0)
         return res.status(400).json({ msg: 'cardNames must be a non-empty array.' });
-    }
 
     const cardsToProcess = cardNames.map(s => String(s).trim()).filter(Boolean);
-    const createdPosts = [];
 
     try {
-        // Loop through and create each post document instantly
-        for (const cardName of cardsToProcess) {
+        const createdPosts = await Promise.all(cardsToProcess.map(async (cardName) => {
             const newPost = new Post({
                 user: { uid, displayName, contact: { email: userEmail, phoneNumber: userPhone || null } },
                 cardName,
@@ -75,32 +67,26 @@ exports.createPostsFromList = async (req, res) => {
                 isApiPrice: priceMode !== 'fixed',
                 cardImageUrl: null,
             });
-            const savedPost = await newPost.save();
-            createdPosts.push(savedPost);
-        }
+            return await newPost.save();
+        }));
 
-        // Respond to the client immediately with all created posts.
         res.status(201).json({ count: createdPosts.length, items: createdPosts });
-        
-        // --- Start Background Tasks ---
-        // Now, iterate and start a background job for each new post.
-        // This runs after the response has been sent.
+
+        // Background tasks
         for (const post of createdPosts) {
-             // We only fetch market price if the user requested it.
             const shouldFetchPrice = priceMode === 'market';
-            initiatePriceAndImageFetch(post._id, post.cardName, shouldFetchPrice);
+            initiatePriceAndImageFetch(post._id, post.cardName, shouldFetchPrice)
+                .catch(err => console.error(`Background fetch failed for ${post.cardName}:`, err));
         }
 
     } catch (err) {
-        console.error("Error in createPostsFromList:", err.message);
-        res.status(500).send('Server Error');
+        console.error("Error in createPostsFromList:", err);
+        res.status(500).json({ msg: 'Internal server error', error: err.message });
     }
 };
 
-
-// --- All other controller functions (getAllPosts, updatePost, etc.) remain the same ---
-// ... (paste your existing getAllPosts, getMyPosts, updatePost, deletePost, etc., here)
-exports.getAllPosts = async (req, res) => { /* ... your existing code ... */ };
-exports.getMyPosts = async (req, res) => { /* ... your existing code ... */ };
-exports.updatePost = async (req, res) => { /* ... your existing code ... */ };
-exports.deletePost = async (req, res) => { /* ... your existing code ... */ };
+// --- Other controllers ---
+exports.getAllPosts = async (req, res) => { /* ... */ };
+exports.getMyPosts = async (req, res) => { /* ... */ };
+exports.updatePost = async (req, res) => { /* ... */ };
+exports.deletePost = async (req, res) => { /* ... */ };
