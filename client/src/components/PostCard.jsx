@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tag, MapPin, BadgeDollarSign } from 'lucide-react';
-import '../index.css'
+
 
 const PostCard = ({ post }) => {
   const cardColor = post.postType === 'sell' ? 'border-blue-500' : 'border-green-500';

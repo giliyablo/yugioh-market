@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { createPost, createPostsFromList } from '../services/api';
-import '../index.css'
+
 
 const CreatePostModal = ({ onPostCreated }) => {
     const { currentUser } = useAuth();

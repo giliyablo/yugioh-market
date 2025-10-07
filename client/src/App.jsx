@@ -6,7 +6,6 @@ import HomePage from './pages/HomePage';
 import MyPostsPage from './pages/MyPostsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import './index.css'
 
 function App() {
   return (

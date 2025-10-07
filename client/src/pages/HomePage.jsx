@@ -6,7 +6,6 @@ import CreatePostModal from '../components/CreatePostModal';
 import EditPostModal from '../components/EditPostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Info } from 'lucide-react';
-import '../index.css'
 
 const HomePage = () => {
     const [searchParams] = useSearchParams();

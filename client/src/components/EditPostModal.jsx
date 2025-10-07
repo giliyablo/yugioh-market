@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { updatePost } from '../services/api';
-import '../index.css'
+
 
 const EditPostModal = ({ post, onClose, onUpdate }) => {
   const { currentUser } = useAuth();
