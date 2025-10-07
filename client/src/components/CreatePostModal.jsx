@@ -100,7 +100,7 @@ const CreatePostModal = ({ onPostCreated }) => {
                         <option value="buy">I want to Buy</option>
                     </select>
                     {!isBatch && (
-                        <input type="number" name="price" placeholder="Price in $ (leave blank for market price)" className="input input-bordered w-full" value={formData.price} onChange={handleChange} />
+                        <input type="number" name="price" placeholder="Price in ₪ (leave blank for market price)" className="input input-bordered w-full" value={formData.price} onChange={handleChange} />
                     )}
                     <select name="condition" className="select select-bordered w-full" value={formData.condition} onChange={handleChange}>
                         <option>Mint</option>
@@ -123,7 +123,7 @@ const CreatePostModal = ({ onPostCreated }) => {
                                 <option value="none">None</option>
                             </select>
                             {priceMode === 'fixed' && (
-                                <input type="number" className="input input-bordered" placeholder="$ Fixed price" value={fixedPrice} onChange={(e) => setFixedPrice(e.target.value)} />
+                                <input type="number" className="input input-bordered" placeholder="₪ Fixed price" value={fixedPrice} onChange={(e) => setFixedPrice(e.target.value)} />
                             )}
                         </div>
                     )}
@@ -142,3 +142,4 @@ const CreatePostModal = ({ onPostCreated }) => {
 };
 
 export default CreatePostModal;
+

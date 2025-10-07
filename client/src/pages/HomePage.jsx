@@ -3,192 +3,236 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { getPosts, updatePost, deletePost } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import CreatePostModal from '../components/CreatePostModal';
+import EditPostModal from '../components/EditPostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const HomePage = () => {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
-  const [sortDir, setSortDir] = useState(searchParams.get('sortDir') || '');
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-  const [totalPages, setTotalPages] = useState(1);
-  const { currentUser } = useAuth();
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const [sortBy, setSortBy] = useState(searchParams.get('sortBy') || '');
+    const [sortDir, setSortDir] = useState(searchParams.get('sortDir') || '');
+    const [posts, setPosts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(20);
+    const [totalPages, setTotalPages] = useState(1);
+    const { currentUser } = useAuth();
+    
+    const [editingPost, setEditingPost] = useState(null);
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const params = Object.fromEntries(searchParams.entries());
-        const res = await getPosts({
-          ...params,
-          sortBy: params.sortBy || sortBy || undefined,
-          sortDir: params.sortDir || sortDir || undefined,
-          page: params.page ? Number(params.page) : 1,
-          limit
-        });
-        const data = res.data;
-        setPosts(data.items || []);
-        setPage(data.page || 1);
-        setTotalPages(data.totalPages || 1);
-      } catch (err) {
-        setError('Failed to fetch posts. The server might be down.');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
+    useEffect(() => {
+        const fetchPosts = async () => {
+            setLoading(true);
+            try {
+                const params = Object.fromEntries(searchParams.entries());
+                const res = await getPosts({
+                    ...params,
+                    sortBy: params.sortBy || sortBy || undefined,
+                    sortDir: params.sortDir || sortDir || undefined,
+                    page: params.page ? Number(params.page) : 1,
+                    limit
+                });
+                const data = res.data;
+                setPosts(data.items || []);
+                setPage(data.page || 1);
+                setTotalPages(data.totalPages || 1);
+            } catch (err) {
+                setError('Failed to fetch posts. The server might be down.');
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchPosts();
+    }, [searchParams, limit, sortBy, sortDir]);
+
+    const handlePostCreated = (newPost) => {
+        setPosts(prevPosts => [newPost, ...prevPosts]);
     };
-    fetchPosts();
-  }, [searchParams, limit, sortBy, sortDir]);
 
-  const handlePostCreated = (newPost) => {
-    setPosts([newPost, ...posts]);
-  };
+    const handlePostUpdate = (updatedPost) => {
+        // If a post is made inactive (e.g., completed), remove it from the homepage list.
+        if (!updatedPost.isActive) {
+            setPosts(posts.filter(p => p._id !== updatedPost._id));
+        } else {
+            setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+        }
+        setEditingPost(null);
+    };
 
-  if (loading) {
-    return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
-  }
-  
-  if (error) {
-    return <div className="text-center text-red-500 mt-20">{error}</div>;
-  }
+    const handleDelete = async (postId) => {
+        if (window.confirm('Are you sure you want to delete this post?')) {
+            try {
+                await deletePost(postId);
+                setPosts(posts.filter(p => p._id !== postId));
+            } catch (e) {
+                console.error(e);
+                alert('Failed to delete post.');
+            }
+        }
+    };
 
-  const cycleSort = (column) => {
-    // cycles: none -> asc -> desc -> none
-    let nextBy = sortBy;
-    let nextDir = sortDir;
-    if (sortBy !== column) {
-      nextBy = column; nextDir = 'asc';
-    } else if (sortDir === 'asc') {
-      nextDir = 'desc';
-    } else if (sortDir === 'desc') {
-      nextBy = ''; nextDir = '';
-    } else {
-      nextDir = 'asc';
+    const handleCompletePost = async (post) => {
+        if (window.confirm('Mark this post as completed? It will be removed from the main list.')) {
+            try {
+                await updatePost(post._id, { isActive: false });
+                setPosts(posts.filter(p => p._id !== post._id));
+            } catch (e) {
+                console.error(e);
+                alert('Failed to update post status.');
+            }
+        }
+    };
+
+    const cycleSort = (column) => {
+        let nextBy = column;
+        let nextDir = 'asc';
+
+        if (sortBy === column) {
+            if (sortDir === 'asc') {
+                nextDir = 'desc';
+            } else if (sortDir === 'desc') {
+                nextBy = '';
+                nextDir = '';
+            }
+        }
+
+        setSortBy(nextBy);
+        setSortDir(nextDir);
+        const params = new URLSearchParams(window.location.search);
+        if (nextBy) params.set('sortBy', nextBy); else params.delete('sortBy');
+        if (nextDir) params.set('sortDir', nextDir); else params.delete('sortDir');
+        params.delete('page');
+        navigate({ pathname: '/', search: params.toString() });
+    };
+
+    const SortHeader = ({ label, column }) => {
+        const active = sortBy === column;
+        const dir = active ? sortDir : '';
+        const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
+        return (
+            <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
+                {label} {icon}
+            </button>
+        );
+    };
+    
+    if (loading) {
+        return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
+    }
+    
+    if (error) {
+        return <div className="text-center text-red-500 mt-20">{error}</div>;
     }
 
-    setSortBy(nextBy);
-    setSortDir(nextDir);
-    const params = new URLSearchParams(window.location.search);
-    if (nextBy) params.set('sortBy', nextBy); else params.delete('sortBy');
-    if (nextDir) params.set('sortDir', nextDir); else params.delete('sortDir');
-    params.delete('page');
-    navigate({ pathname: '/', search: params.toString() });
-  };
-
-  const SortHeader = ({ label, column }) => {
-    const active = sortBy === column;
-    const dir = active ? sortDir : '';
-    const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
     return (
-      <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
-        {label} {icon}
-      </button>
-    );
-  };
+        <div>
+            <h1 className="text-3xl font-bold mb-6">Active Posts</h1>
+            <div className="overflow-x-auto bg-base-100 rounded-box shadow">
+                <table className="table table-zebra">
+                    <thead>
+                        <tr>
+                            <th><SortHeader label="Card" column="cardImageUrl" /></th>
+                            <th><SortHeader label="Name" column="cardName" /></th>
+                            <th><SortHeader label="Type" column="postType" /></th>
+                            <th><SortHeader label="Price" column="price" /></th>
+                            <th><SortHeader label="Condition" column="condition" /></th>
+                            <th><SortHeader label="User" column="user.displayName" /></th>
+                            <th><SortHeader label="Contact" column="user.contact.phoneNumber" /></th>
+                            <th><SortHeader label="Created" column="createdAt" /></th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {posts.length > 0 ? (
+                            posts.map((post) => (
+                                <tr key={post._id}>
+                                    <td>
+                                        <img
+                                            src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
+                                            alt={post.cardName}
+                                            loading="lazy"
+                                            className="object-cover rounded w-20 h-[116px]"
+                                        />
+                                    </td>
+                                    <td className="whitespace-pre-wrap">{post.cardName}</td>
+                                    <td className="capitalize">{post.postType}</td>
+                                    <td>
+                                        <div className="flex items-center gap-1">
+                                            <span>{post.price !== undefined && post.price !== null ? `₪${Number(post.price).toFixed(2)}` : '-'}</span>
+                                            {post.isApiPrice && (
+                                                <div className="tooltip" data-tip="Price from TCGplayer (Market)">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                    </svg>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td>{post.condition}</td>
+                                    <td>{post.user?.displayName || '-'}</td>
+                                    <td>{post.user?.contact?.phoneNumber || post.user?.contact?.email || '-'}</td>
+                                    <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
+                                    <td>
+                                        {currentUser && post.user?.uid === currentUser.uid && (
+                                            <div className="flex flex-col gap-2">
+                                                <button className="btn btn-xs btn-outline" onClick={() => setEditingPost(post)}>Edit</button>
+                                                <button className="btn btn-xs btn-outline btn-success" onClick={() => handleCompletePost(post)}>Complete</button>
+                                                <button className="btn btn-xs btn-outline btn-error" onClick={() => handleDelete(post._id)}>Delete</button>
+                                            </div>
+                                        )}
+                                         {currentUser && post.user?.uid !== currentUser.uid && (
+                                            <button className="btn btn-xs btn-primary">Contact</-button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td colSpan={9} className="text-center py-10">No posts found.</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Posts</h1>
-      <div className="overflow-x-auto bg-base-100 rounded-box shadow">
-        <table className="table table-zebra">
-          <thead>
-            <tr>
-              <th><SortHeader label="Card" column="cardImageUrl" /></th>
-              <th><SortHeader label="Name" column="cardName" /></th>
-              <th><SortHeader label="Type" column="postType" /></th>
-              <th><SortHeader label="Price" column="price" /></th>
-              <th><SortHeader label="Condition" column="condition" /></th>
-              <th><SortHeader label="User" column="user.displayName" /></th>
-              <th><SortHeader label="Phone" column="user.contact.phoneNumber" /></th>
-              <th><SortHeader label="Created" column="createdAt" /></th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {posts.length > 0 ? (
-              posts.map((post) => (
-                <tr key={post._id}>
-                  <td>
-                    <img
-                      src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
-                      alt={post.cardName}
-                      loading="lazy"
-                      width={160}
-                      height={240}
-                      className="object-cover rounded"
-                      style={{ width: '160px', height: '240px' }}
-                    />
-                  </td>
-                  <td className="whitespace-pre-wrap">{post.cardName}</td>
-                  <td className="capitalize">{post.postType}</td>
-                  <td>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</td>
-                  <td>{post.condition}</td>
-                  <td>{post.user?.displayName || '-'}</td>
-                  <td>{post.user?.contact?.phoneNumber || '-'}</td>
-                  <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
-                  <td>
-                    {currentUser && post.user?.uid === currentUser.uid && (
-                      <div className="flex gap-2">
-                        <button className="btn btn-xs" onClick={async () => {
-                          const newPrice = prompt('New price ($):', post.price ?? '');
-                          if (newPrice === null) return;
-                          try {
-                            const { data } = await updatePost(post._id, { price: Number(newPrice) });
-                            setPosts(posts.map(p => p._id === post._id ? data : p));
-                          } catch (e) { console.error(e); }
-                        }}>Edit</button>
-                        <button className="btn btn-xs btn-error" onClick={async () => {
-                          if (!confirm('Delete this post?')) return;
-                          try {
-                            await deletePost(post._id);
-                            setPosts(posts.filter(p => p._id !== post._id));
-                          } catch (e) { console.error(e); }
-                        }}>Delete</button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={7} className="text-center py-10">No posts found.</td>
-              </tr>
+            <div className="flex items-center justify-between mt-4">
+                <div className="join">
+                    <button className="btn join-item" disabled={page <= 1} onClick={() => {
+                        const params = new URLSearchParams(window.location.search);
+                        params.set('page', String(page - 1));
+                        navigate({ search: params.toString() });
+                    }}>Prev</button>
+                    <button className="btn join-item" disabled={page >= totalPages} onClick={() => {
+                        const params = new URLSearchParams(window.location.search);
+                        params.set('page', String(page + 1));
+                        navigate({ search: params.toString() });
+                    }}>Next</button>
+                </div>
+                <div className="flex items-center gap-2">
+                    <span>Rows:</span>
+                    <select className="select select-bordered select-sm" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                    </select>
+                    <span>Page {page} of {totalPages}</span>
+                </div>
+            </div>
+            
+            <CreatePostModal onPostCreated={handlePostCreated} />
+
+            {editingPost && (
+                <EditPostModal
+                    post={editingPost}
+                    onClose={() => setEditingPost(null)}
+                    onUpdate={handlePostUpdate}
+                />
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="flex items-center justify-between mt-4">
-        <div className="join">
-          <button className="btn join-item" disabled={page <= 1} onClick={() => {
-            const params = new URLSearchParams(window.location.search);
-            params.set('page', String(page - 1));
-            window.history.pushState({}, '', `/?${params.toString()}`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}>Prev</button>
-          <button className="btn join-item" disabled={page >= totalPages} onClick={() => {
-            const params = new URLSearchParams(window.location.search);
-            params.set('page', String(page + 1));
-            window.history.pushState({}, '', `/?${params.toString()}`);
-            window.dispatchEvent(new PopStateEvent('popstate'));
-          }}>Next</button>
         </div>
-        <div className="flex items-center gap-2">
-          <span>Rows:</span>
-          <select className="select select-bordered select-sm" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-            <option value={50}>50</option>
-          </select>
-          <span>Page {page} of {totalPages}</span>
-        </div>
-      </div>
-      <CreatePostModal onPostCreated={handlePostCreated} />
-    </div>
-  );
+    );
 };
 
 export default HomePage;
+

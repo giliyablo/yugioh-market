@@ -11,11 +11,11 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
     try {
         // If no browser is provided, we're in "single mode". Launch and manage our own.
         if (!browser) {
-            browser = await puppeteer.launch();
+            browser = await puppeteer.launch({ headless: "new" });
         }
         page = await browser.newPage();
         
-        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, ' '));
+        const formattedCardName = encodeURIComponent(String(cardName).trim());
         const searchUrl = `https://www.tcgplayer.com/search/yugioh/product?productLineName=yugioh&q=${formattedCardName}&view=grid`;
         // console.log(formattedCardName);
         // console.log(searchUrl);
@@ -27,21 +27,25 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
         const priceSelector = 'span.product-card__market-price--value';
         await page.waitForSelector(priceSelector, { timeout: 15000 });
         const priceElementText = await page.$eval(priceSelector, el => el.textContent);
-        const priceText = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
-        // console.log(priceText);
+        const price = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
+        // console.log(price);
 
-        if (priceText) {
-            return priceText;
+        if (!isNaN(price)) {
+            return { cardName, price };
         }
 
         console.warn(`Could not find a market price for "${cardName}" on the page.`);
-        return null;
+        return { cardName, price: null };
 
     } catch (error) {
         console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
-        return null; // Return null if the scraping call fails
+        return { cardName, price: null }; // Return null object if the scraping call fails
     } finally {
-        if (browser) {
+        if (page) {
+            await page.close();
+        }
+        // Only close the browser if we launched it within this function (single mode).
+        if (!browserInstance && browser) {
             await browser.close();
         }
     }
@@ -141,11 +145,11 @@ exports.getMarketPrice = getMarketPrice;
 exports.getAllPosts = async (req, res) => {
     try {
         const {
-            q,              // search by card name (partial, case-insensitive)
-            user,           // search by user uid or displayName (partial)
+            q,               // search by card name (partial, case-insensitive)
+            user,            // search by user uid or displayName (partial)
             sort = 'latest', // latest | cheapest | alpha
-            sortBy,         // optional: field name to sort by
-            sortDir,        // optional: asc | desc
+            sortBy,          // optional: field name to sort by
+            sortDir,         // optional: asc | desc
             page = 1,
             limit = 20
         } = req.query;
@@ -205,21 +209,31 @@ exports.getAllPosts = async (req, res) => {
             }));
         }
 
-        // Backfill missing or placeholder images in the background and update the response
-        const isPriceNull = (price) => !price || (price == 0) || (price == "");
-        const backfillPrices = items.filter((p) => isPriceNull(p.price)); // 0; // 
+        // Backfill missing or placeholder prices in the background and update the response
+        const isPriceNull = (price) => price === null || price === undefined || price === 0 || price === "";
+        const backfillPrices = items.filter((p) => isPriceNull(p.price));
         if (backfillPrices.length > 0) {
-            await Promise.allSettled(backfillPrices.map(async (p) => {
-                const fetched = await getMarketPrice(p.cardName);
-                if (fetched) {
-                    try {
-                        await Post.updateOne({ _id: p._id }, { $set: { price: fetched } });
-                        p.price = fetched; // reflect in current response
-                    } catch (e) {
-                        console.error('Failed to persist backfilled price for', p._id.toString(), e.message);
-                    }
+            const browser = await puppeteer.launch({ headless: "new" });
+            try {
+                const CONCURRENCY_LIMIT = 2;
+                for (let i = 0; i < backfillPrices.length; i += CONCURRENCY_LIMIT) {
+                    const chunk = backfillPrices.slice(i, i + CONCURRENCY_LIMIT);
+                    await Promise.allSettled(chunk.map(async (p) => {
+                        const result = await getMarketPrice(p.cardName, browser);
+                        if (result && result.price !== null) {
+                            try {
+                                await Post.updateOne({ _id: p._id }, { $set: { price: result.price, isApiPrice: true } });
+                                p.price = result.price; // reflect in current response
+                                p.isApiPrice = true; // reflect in current response
+                            } catch (e) {
+                                console.error('Failed to persist backfilled price for', p._id.toString(), e.message);
+                            }
+                        }
+                    }));
                 }
-            }));
+            } finally {
+                await browser.close();
+            }
         }
 
         res.json({
@@ -238,8 +252,8 @@ exports.getAllPosts = async (req, res) => {
 // --- Controller for POST /api/posts ---
 exports.createPost = async (req, res) => {
     const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
-    const { uid } = req.user; // From authMiddleware
-    const displayName = req.user.displayName || req.user.name || req.user.email || 'User';
+    const { uid, name, email: userEmail, phone_number: userPhone } = req.user; // From authMiddleware
+    const displayName = name || userEmail || 'User';
 
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
@@ -250,11 +264,15 @@ exports.createPost = async (req, res) => {
 
     // If no price is provided, fetch it from the API
     if (price === undefined || price === null || price === '') {
-        finalPrice = await getMarketPrice(cardName);
-        if (finalPrice === null) {
-            return res.status(500).json({ msg: 'Could not retrieve market price. Please set a price manually.' });
+        const result = await getMarketPrice(cardName); // Calls in single mode
+        if (result && result.price !== null) {
+            finalPrice = result.price;
+            isApiPrice = true;
+        } else {
+            // Allow posting without a price if API fails
+            finalPrice = null; 
+            isApiPrice = false;
         }
-        isApiPrice = true;
     }
 
     try {
@@ -263,8 +281,8 @@ exports.createPost = async (req, res) => {
             finalImageUrl = await getCardImageFromYugipedia(cardName);
         }
 
-        const email = contactEmail || req.user.email || null;
-        const phoneNumber = contactPhone || req.user.phoneNumber || null;
+        const email = contactEmail || userEmail || null;
+        const phoneNumber = contactPhone || userPhone || null;
 
         const newPost = new Post({
             user: {
@@ -324,49 +342,80 @@ exports.createBatchPosts = async (req, res) => {
 // Accepts a list of card names and creates posts. If priceMode === 'market',
 // fetch a price per card; if 'fixed', use provided fixedPrice; if 'none', leave empty.
 exports.createPostsFromList = async (req, res) => {
+    let browser = null;
     try {
-        const { uid } = req.user;
-        const displayName = req.user.displayName || req.user.name || req.user.email || 'User';
+        const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
+        const displayName = name || userEmail || 'User';
         const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
         if (!Array.isArray(cardNames) || cardNames.length === 0) {
             return res.status(400).json({ msg: 'cardNames must be a non-empty array.' });
         }
 
-        const created = [];
-        for (const rawName of cardNames) {
-            const cardName = String(rawName).trim();
-            if (!cardName) continue;
+        const cardsToProcess = cardNames.map(s => String(s).trim()).filter(Boolean);
+        let pricesMap = new Map();
 
-            let finalPrice = undefined;
+        if (priceMode === 'market' && cardsToProcess.length > 0) {
+            browser = await puppeteer.launch({ headless: "new" });
+            const CONCURRENCY_LIMIT = 2;
+            for (let i = 0; i < cardsToProcess.length; i += CONCURRENCY_LIMIT) {
+                const chunk = cardsToProcess.slice(i, i + CONCURRENCY_LIMIT);
+                const pricePromises = chunk.map(name => getMarketPrice(name, browser));
+                const priceResults = await Promise.all(pricePromises);
+                priceResults.forEach(result => {
+                    if (result.price !== null) {
+                        pricesMap.set(result.cardName, result.price);
+                    }
+                });
+            }
+        }
+
+        const created = [];
+        for (const cardName of cardsToProcess) {
+            let finalPrice;
             let isApiPrice = false;
-            if (priceMode === 'fixed' && fixedPrice !== undefined && fixedPrice !== null && fixedPrice !== '') {
+
+            if (priceMode === 'fixed' && fixedPrice !== undefined) {
                 finalPrice = Number(fixedPrice);
             } else if (priceMode === 'market') {
-                finalPrice = await getMarketPrice(cardName);
-                isApiPrice = finalPrice !== null;
+                finalPrice = pricesMap.get(cardName);
+                isApiPrice = finalPrice !== undefined;
             }
 
             let imageUrl = await getCardImageFromYugipedia(cardName);
 
-            const email = req.user.email || null;
-            const phoneNumber = req.user.phoneNumber || null;
-
             const newPost = new Post({
-                user: { uid, displayName },
+                user: { uid, displayName, contact: { email: userEmail, phoneNumber: userPhone || null } },
                 cardName,
                 postType,
-                price: finalPrice === undefined ? undefined : Number(finalPrice),
+                price: finalPrice,
                 condition,
-                isApiPrice: Boolean(isApiPrice),
+                isApiPrice,
                 cardImageUrl: imageUrl || undefined
             });
-            newPost.user.contact = { email, phoneNumber };
             const saved = await newPost.save();
             created.push(saved);
         }
 
         res.status(201).json({ count: created.length, items: created });
+    } catch (err) {
+        console.error("Error in createPostsFromList:", err.message);
+        res.status(500).send('Server Error');
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
+    }
+};
+
+
+
+// --- Controller for GET /api/posts/my-posts ---
+exports.getMyPosts = async (req, res) => {
+    try {
+        const { uid } = req.user;
+        const posts = await Post.find({ 'user.uid': uid }).sort({ createdAt: -1 });
+        res.json(posts);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -379,18 +428,21 @@ exports.updatePost = async (req, res) => {
         const { id } = req.params;
         const { uid } = req.user;
         const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
-        const update = {};
-        for (const key of allowedFields) {
-            if (Object.prototype.hasOwnProperty.call(req.body, key)) {
-                update[key] = req.body[key];
-            }
-        }
-
+        
         const post = await Post.findById(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
         if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
 
-        Object.assign(post, update);
+        for (const key of allowedFields) {
+            if (req.body[key] !== undefined) {
+                post[key] = req.body[key];
+            }
+        }
+        // If price is manually updated, it's no longer an API price.
+        if (req.body.price !== undefined) {
+            post.isApiPrice = false;
+        }
+
         const saved = await post.save();
         return res.json(saved);
     } catch (err) {
@@ -408,13 +460,14 @@ exports.deletePost = async (req, res) => {
         if (!post) return res.status(404).json({ msg: 'Post not found' });
         if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
 
-        await Post.deleteOne({ _id: id });
-        return res.json({ ok: true });
+        await Post.findByIdAndDelete(id);
+        return res.json({ msg: 'Post deleted' });
     } catch (err) {
         console.error(err.message);
         return res.status(500).send('Server Error');
     }
 };
+
 // --- NEW FUNCTION: Web Scraper for Card Image ---
 exports.getCardImageFromWiki = async (req, res) => {
     const { cardName } = req.body;
