@@ -113,6 +113,7 @@ const MyPostsPage = () => {
         <div>
             {editingPost && (
                 <EditPostModal
+                    key={editingPost._id} // This is the fix
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}

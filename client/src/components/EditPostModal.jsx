@@ -23,7 +23,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
         if (!formData.cardName) return;
         setLoading(true);
         try {
-            const res = await fetchCardImage(formData.cardName);
+            const res = await fetchCardImage(formData.cardname);
             setFormData({ ...formData, cardImageUrl: res.data.imageUrl });
         } catch (err) {
             console.error("Failed to fetch image", err);

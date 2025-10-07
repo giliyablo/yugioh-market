@@ -225,6 +225,7 @@ const HomePage = () => {
 
             {editingPost && (
                 <EditPostModal
+                    key={editingPost._id} // This key is crucial for re-rendering
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}
