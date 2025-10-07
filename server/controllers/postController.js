@@ -310,6 +310,64 @@ exports.createPost = async (req, res) => {
     }
 };
 
+// --- Controller for GET /api/posts/my-posts ---
+exports.getMyPosts = async (req, res) => {
+    try {
+        const { uid } = req.user;
+        const posts = await Post.find({ 'user.uid': uid }).sort({ createdAt: -1 });
+        res.json(posts);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// --- Controller for PUT /api/posts/:id ---
+exports.updatePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { uid } = req.user;
+        const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
+        
+        const post = await Post.findById(id);
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        for (const key of allowedFields) {
+            if (req.body[key] !== undefined) {
+                post[key] = req.body[key];
+            }
+        }
+        // If price is manually updated, it's no longer an API price.
+        if (req.body.price !== undefined) {
+            post.isApiPrice = false;
+        }
+
+        const saved = await post.save();
+        return res.json(saved);
+    } catch (err) {
+        console.error(err.message);
+        return res.status(500).send('Server Error');
+    }
+};
+
+// --- Controller for DELETE /api/posts/:id ---
+exports.deletePost = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { uid } = req.user;
+        const post = await Post.findById(id);
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        await Post.findByIdAndDelete(id);
+        return res.json({ msg: 'Post deleted' });
+    } catch (err) {
+        console.error(err.message);
+        return res.status(500).send('Server Error');
+    }
+};
+
 // --- Controller for POST /api/posts/batch ---
 // This is a placeholder for a very complex feature.
 exports.createBatchPosts = async (req, res) => {
@@ -409,66 +467,7 @@ exports.createPostsFromList = async (req, res) => {
 };
 
 
-
-// --- Controller for GET /api/posts/my-posts ---
-exports.getMyPosts = async (req, res) => {
-    try {
-        const { uid } = req.user;
-        const posts = await Post.find({ 'user.uid': uid }).sort({ createdAt: -1 });
-        res.json(posts);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-};
-
-// --- Controller for PUT /api/posts/:id ---
-exports.updatePost = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { uid } = req.user;
-        const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
-        
-        const post = await Post.findById(id);
-        if (!post) return res.status(404).json({ msg: 'Post not found' });
-        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
-
-        for (const key of allowedFields) {
-            if (req.body[key] !== undefined) {
-                post[key] = req.body[key];
-            }
-        }
-        // If price is manually updated, it's no longer an API price.
-        if (req.body.price !== undefined) {
-            post.isApiPrice = false;
-        }
-
-        const saved = await post.save();
-        return res.json(saved);
-    } catch (err) {
-        console.error(err.message);
-        return res.status(500).send('Server Error');
-    }
-};
-
-// --- Controller for DELETE /api/posts/:id ---
-exports.deletePost = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { uid } = req.user;
-        const post = await Post.findById(id);
-        if (!post) return res.status(404).json({ msg: 'Post not found' });
-        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
-
-        await Post.findByIdAndDelete(id);
-        return res.json({ msg: 'Post deleted' });
-    } catch (err) {
-        console.error(err.message);
-        return res.status(500).send('Server Error');
-    }
-};
-
-// --- NEW FUNCTION: Web Scraper for Card Image ---
+// --- Web Scraper for Card Image ---
 exports.getCardImageFromWiki = async (req, res) => {
     const { cardName } = req.body;
     if (!cardName) {
@@ -485,6 +484,25 @@ exports.getCardImageFromWiki = async (req, res) => {
     } catch (error) {
         // The helper function already logs the detailed error.
         res.status(500).json({ message: 'An error occurred while fetching the card image.' });
+    }
+};
+
+// --- NEW FUNCTION: Web Scraper for Card Price ---
+exports.getCardPriceFromTCG = async (req, res) => {
+    const { cardName } = req.body;
+    if (!cardName) {
+        return res.status(400).json({ message: 'Card name is required.' });
+    }
+    
+    try {
+        const result = await getMarketPrice(cardName); // Calls in single mode
+        if (result && result.price !== null) {
+            res.status(200).json({ price: result.price });
+        } else {
+            res.status(404).json({ message: 'Price not found for the specified card.' });
+        }
+    } catch (error) {
+        res.status(500).json({ message: 'An error occurred while fetching the card price.' });
     }
 };
 

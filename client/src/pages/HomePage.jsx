@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import CreatePostModal from '../components/CreatePostModal';
 import EditPostModal from '../components/EditPostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { Info } from 'lucide-react';
 
 const HomePage = () => {
     const [searchParams] = useSearchParams();
@@ -18,7 +19,6 @@ const HomePage = () => {
     const [limit, setLimit] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
     const { currentUser } = useAuth();
-    
     const [editingPost, setEditingPost] = useState(null);
 
     useEffect(() => {
@@ -52,7 +52,6 @@ const HomePage = () => {
     };
 
     const handlePostUpdate = (updatedPost) => {
-        // If a post is made inactive (e.g., completed), remove it from the homepage list.
         if (!updatedPost.isActive) {
             setPosts(posts.filter(p => p._id !== updatedPost._id));
         } else {
@@ -85,17 +84,26 @@ const HomePage = () => {
         }
     };
 
-    const cycleSort = (column) => {
-        let nextBy = column;
-        let nextDir = 'asc';
+    if (loading) {
+        return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
+    }
+    
+    if (error) {
+        return <div className="text-center text-red-500 mt-20">{error}</div>;
+    }
 
-        if (sortBy === column) {
-            if (sortDir === 'asc') {
-                nextDir = 'desc';
-            } else if (sortDir === 'desc') {
-                nextBy = '';
-                nextDir = '';
-            }
+    const cycleSort = (column) => {
+        // cycles: none -> asc -> desc -> none
+        let nextBy = sortBy;
+        let nextDir = sortDir;
+        if (sortBy !== column) {
+            nextBy = column; nextDir = 'asc';
+        } else if (sortDir === 'asc') {
+            nextDir = 'desc';
+        } else if (sortDir === 'desc') {
+            nextBy = ''; nextDir = '';
+        } else {
+            nextDir = 'asc';
         }
 
         setSortBy(nextBy);
@@ -117,23 +125,15 @@ const HomePage = () => {
             </button>
         );
     };
-    
-    if (loading) {
-        return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
-    }
-    
-    if (error) {
-        return <div className="text-center text-red-500 mt-20">{error}</div>;
-    }
 
     return (
         <div>
-            <h1 className="text-3xl font-bold mb-6">Active Posts</h1>
+            <h1 className="text-3xl font-bold mb-6">Posts</h1>
             <div className="overflow-x-auto bg-base-100 rounded-box shadow">
                 <table className="table table-zebra">
                     <thead>
                         <tr>
-                            <th><SortHeader label="Card" column="cardImageUrl" /></th>
+                            <th><SortHeader label="Card" column="cardName" /></th>
                             <th><SortHeader label="Name" column="cardName" /></th>
                             <th><SortHeader label="Type" column="postType" /></th>
                             <th><SortHeader label="Price" column="price" /></th>
@@ -153,19 +153,20 @@ const HomePage = () => {
                                             src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
                                             alt={post.cardName}
                                             loading="lazy"
-                                            className="object-cover rounded w-20 h-[116px]"
+                                            width={160}
+                                            height={240}
+                                            className="object-cover rounded"
+                                            style={{ width: '160px', height: '240px' }}
                                         />
                                     </td>
                                     <td className="whitespace-pre-wrap">{post.cardName}</td>
                                     <td className="capitalize">{post.postType}</td>
                                     <td>
                                         <div className="flex items-center gap-1">
-                                            <span>{post.price !== undefined && post.price !== null ? `₪${Number(post.price).toFixed(2)}` : '-'}</span>
+                                            <span>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</span>
                                             {post.isApiPrice && (
                                                 <div className="tooltip" data-tip="Price from TCGplayer (Market)">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
+                                                    <Info size={16} className="text-info" />
                                                 </div>
                                             )}
                                         </div>
@@ -182,8 +183,8 @@ const HomePage = () => {
                                                 <button className="btn btn-xs btn-outline btn-error" onClick={() => handleDelete(post._id)}>Delete</button>
                                             </div>
                                         )}
-                                         {currentUser && post.user?.uid !== currentUser.uid && (
-                                            <button className="btn btn-xs btn-primary">Contact</-button>
+                                        {currentUser && post.user?.uid !== currentUser.uid && (
+                                             <button className="btn btn-xs btn-primary">Contact</button>
                                         )}
                                     </td>
                                 </tr>

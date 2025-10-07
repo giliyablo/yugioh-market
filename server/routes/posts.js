@@ -6,7 +6,10 @@ const {
     createBatchPosts,
     createPostsFromList,
     updatePost,
-    deletePost
+    deletePost,
+    getMyPosts,
+    getCardImageFromWiki,
+    getCardPriceFromTCG
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -14,6 +17,11 @@ const authMiddleware = require('../middleware/authMiddleware');
 // @desc    Get all active posts
 // @access  Public
 router.get('/', getAllPosts);
+
+// @route   GET /api/posts/my-posts
+// @desc    Get posts for the currently authenticated user
+// @access  Private
+router.get('/my-posts', authMiddleware, getMyPosts);
 
 // @route   POST /api/posts
 // @desc    Create a single new post
@@ -30,6 +38,17 @@ router.post('/batch', authMiddleware, createBatchPosts);
 // @desc    Create multiple posts from a list of card names
 // @access  Private (Requires authentication)
 router.post('/batch-list', authMiddleware, createPostsFromList);
+
+// @route   POST /api/posts/fetch-image
+// @desc    Returns an image URL for a given card name by scraping
+// @access  Private
+router.post('/fetch-image', authMiddleware, getCardImageFromWiki);
+
+// @route   POST /api/posts/fetch-price
+// @desc    Returns a market price for a given card name by scraping
+// @access  Private
+router.post('/fetch-price', authMiddleware, getCardPriceFromTCG);
+
 // @route   PUT /api/posts/:id
 // @desc    Update a post (owner only)
 // @access  Private
@@ -40,21 +59,5 @@ router.put('/:id', authMiddleware, updatePost);
 // @access  Private
 router.delete('/:id', authMiddleware, deletePost);
 
-// @route   GET /api/posts/image
-// @desc    Returns an image URL for a given card name by scraping Yugipedia
-// @access  Public
-router.get('/image', async (req, res) => {
-    const { cardName } = req.query;
-    if (!cardName) return res.status(400).json({ message: 'cardName is required' });
-    try {
-        const { getCardImageFromYugipedia } = require('../controllers/postController');
-        const url = await getCardImageFromYugipedia(cardName);
-        if (url) return res.json({ imageUrl: url });
-        return res.status(404).json({ message: 'Image not found' });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Failed to fetch card image' });
-    }
-});
-
 module.exports = router;
+

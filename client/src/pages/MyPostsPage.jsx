@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { getMyPosts, updatePost, deletePost } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EditPostModal from '../components/EditPostModal';
+import { Info } from 'lucide-react';
 
 const MyPostsPage = () => {
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [editingPost, setEditingPost] = useState(null);
+    const [sortBy, setSortBy] = useState('createdAt');
+    const [sortDir, setSortDir] = useState('desc');
 
     useEffect(() => {
         const fetchMyPosts = async () => {
@@ -55,6 +59,54 @@ const MyPostsPage = () => {
         }
     };
 
+    const cycleSort = (column) => {
+        let nextBy = sortBy;
+        let nextDir = sortDir;
+        if (sortBy !== column) {
+            nextBy = column; nextDir = 'asc';
+        } else if (sortDir === 'asc') {
+            nextDir = 'desc';
+        } else if (sortDir === 'desc') {
+            nextBy = ''; nextDir = '';
+        } else {
+            nextDir = 'asc';
+        }
+        setSortBy(nextBy);
+        setSortDir(nextDir);
+    };
+
+    const sortedPosts = useMemo(() => {
+        if (!sortBy) return posts;
+        return [...posts].sort((a, b) => {
+            // Basic nested property accessor
+            const getField = (obj, path) => path.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
+            
+            const valA = getField(a, sortBy);
+            const valB = getField(b, sortBy);
+
+            if (valA === valB) return 0;
+            if (valA === null || valA === undefined) return 1;
+            if (valB === null || valB === undefined) return -1;
+
+            if (typeof valA === 'string' && typeof valB === 'string') {
+                return sortDir === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            return sortDir === 'asc' ? valA - valB : valB - valA;
+        });
+    }, [posts, sortBy, sortDir]);
+
+
+    const SortHeader = ({ label, column }) => {
+        const active = sortBy === column;
+        const dir = active ? sortDir : '';
+        const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
+        return (
+            <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
+                {label} {icon}
+            </button>
+        );
+    };
+
     if (loading) return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
     if (error) return <div className="text-center text-red-500 mt-20">{error}</div>;
 
@@ -67,22 +119,29 @@ const MyPostsPage = () => {
                     onUpdate={handlePostUpdate}
                 />
             )}
-            <h1 className="text-3xl font-bold mb-6">My Posts</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold">My Posts</h1>
+                <Link to="/" className="btn btn-outline">
+                    ← Back to All Posts
+                </Link>
+            </div>
             <div className="overflow-x-auto bg-base-100 rounded-box shadow">
-                <table className="table w-full">
+                <table className="table table-zebra w-full">
                     <thead>
                         <tr>
                             <th>Status</th>
-                            <th>Card</th>
-                            <th>Name</th>
-                            <th>Type</th>
-                            <th>Price</th>
+                            <th><SortHeader label="Card" column="cardName" /></th>
+                            <th><SortHeader label="Name" column="cardName" /></th>
+                            <th><SortHeader label="Type" column="postType" /></th>
+                            <th><SortHeader label="Price" column="price" /></th>
+                            <th><SortHeader label="Condition" column="condition" /></th>
+                            <th><SortHeader label="Created" column="createdAt" /></th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {posts.length > 0 ? (
-                            posts.map((post) => (
+                        {sortedPosts.length > 0 ? (
+                            sortedPosts.map((post) => (
                                 <tr key={post._id} className={!post.isActive ? 'opacity-50' : ''}>
                                     <td>
                                         {post.isActive ? (
@@ -92,11 +151,30 @@ const MyPostsPage = () => {
                                         )}
                                     </td>
                                     <td>
-                                        <img src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'} alt={post.cardName} className="w-16 h-23 object-cover rounded"/>
+                                        <img
+                                            src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
+                                            alt={post.cardName}
+                                            loading="lazy"
+                                            width={160}
+                                            height={240}
+                                            className="object-cover rounded"
+                                            style={{ width: '160px', height: '240px' }}
+                                        />
                                     </td>
-                                    <td className="font-semibold">{post.cardName}</td>
+                                    <td className="whitespace-pre-wrap font-semibold">{post.cardName}</td>
                                     <td className="capitalize">{post.postType}</td>
-                                    <td>{post.price ? `₪${post.price.toFixed(2)}` : 'N/A'}</td>
+                                    <td>
+                                        <div className="flex items-center gap-1">
+                                            <span>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</span>
+                                            {post.isApiPrice && (
+                                                <div className="tooltip" data-tip="Price from TCGplayer (Market)">
+                                                    <Info size={16} className="text-info" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td>{post.condition}</td>
+                                    <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                                     <td>
                                         <div className="flex flex-col gap-2">
                                             <button className="btn btn-xs btn-outline" onClick={() => setEditingPost(post)}>Edit</button>
@@ -113,7 +191,7 @@ const MyPostsPage = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" className="text-center py-10">You have not created any posts yet.</td>
+                                <td colSpan="8" className="text-center py-10">You have not created any posts yet.</td>
                             </tr>
                         )}
                     </tbody>
