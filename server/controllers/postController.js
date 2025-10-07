@@ -1,16 +1,15 @@
 const Post = require('../models/Post');
 const { initiatePriceAndImageFetch } = require('../services/backgroundScraper');
 
-// --- Create Single Post ---
+// --- Create a single post ---
 exports.createPost = async (req, res) => {
-    if (!req.user) return res.status(401).json({ msg: 'Unauthorized: user info missing.' });
-
     const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
     const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
     const displayName = name || userEmail || 'User';
 
-    if (!cardName || !postType)
+    if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
+    }
 
     try {
         const newPost = new Post({
@@ -27,37 +26,38 @@ exports.createPost = async (req, res) => {
             price: price || null,
             condition,
             cardImageUrl: cardImageUrl || null,
-            isApiPrice: !price,
+            isApiPrice: !price
         });
 
         const post = await newPost.save();
+
+        // Respond immediately
         res.status(201).json(post);
 
-        // Run in background safely
-        initiatePriceAndImageFetch(post._id, cardName)
-            .catch(err => console.error(`Background fetch failed for ${cardName}:`, err));
+        // Start background price/image fetching
+        initiatePriceAndImageFetch(post._id, cardName);
 
     } catch (err) {
-        console.error('Create Post Error:', err);
-        res.status(500).json({ msg: 'Internal server error', error: err.message });
+        console.error('Create Post Error:', err.message);
+        res.status(500).send('Server Error');
     }
 };
 
-// --- Batch Create Posts ---
+// --- Create multiple posts from a list ---
 exports.createPostsFromList = async (req, res) => {
-    if (!req.user) return res.status(401).json({ msg: 'Unauthorized: user info missing.' });
-
     const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
     const displayName = name || userEmail || 'User';
     const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
-    if (!Array.isArray(cardNames) || cardNames.length === 0)
+    if (!Array.isArray(cardNames) || cardNames.length === 0) {
         return res.status(400).json({ msg: 'cardNames must be a non-empty array.' });
+    }
 
     const cardsToProcess = cardNames.map(s => String(s).trim()).filter(Boolean);
+    const createdPosts = [];
 
     try {
-        const createdPosts = await Promise.all(cardsToProcess.map(async (cardName) => {
+        for (const cardName of cardsToProcess) {
             const newPost = new Post({
                 user: { uid, displayName, contact: { email: userEmail, phoneNumber: userPhone || null } },
                 cardName,
@@ -67,26 +67,78 @@ exports.createPostsFromList = async (req, res) => {
                 isApiPrice: priceMode !== 'fixed',
                 cardImageUrl: null,
             });
-            return await newPost.save();
-        }));
+            const savedPost = await newPost.save();
+            createdPosts.push(savedPost);
+        }
 
+        // Respond immediately
         res.status(201).json({ count: createdPosts.length, items: createdPosts });
 
-        // Background tasks
+        // Start background fetching
         for (const post of createdPosts) {
-            const shouldFetchPrice = priceMode === 'market';
-            initiatePriceAndImageFetch(post._id, post.cardName, shouldFetchPrice)
-                .catch(err => console.error(`Background fetch failed for ${post.cardName}:`, err));
+            if (priceMode === 'market') {
+                initiatePriceAndImageFetch(post._id, post.cardName);
+            }
         }
 
     } catch (err) {
-        console.error("Error in createPostsFromList:", err);
-        res.status(500).json({ msg: 'Internal server error', error: err.message });
+        console.error("Error in createPostsFromList:", err.message);
+        res.status(500).send('Server Error');
     }
 };
 
-// --- Other controllers ---
-exports.getAllPosts = async (req, res) => { /* ... */ };
-exports.getMyPosts = async (req, res) => { /* ... */ };
-exports.updatePost = async (req, res) => { /* ... */ };
-exports.deletePost = async (req, res) => { /* ... */ };
+// --- Get all posts ---
+exports.getAllPosts = async (req, res) => {
+    try {
+        const posts = await Post.find().sort({ createdAt: -1 }).limit(20);
+        res.json(posts);
+    } catch (err) {
+        console.error('Get All Posts Error:', err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// --- Get posts for the authenticated user ---
+exports.getMyPosts = async (req, res) => {
+    try {
+        const posts = await Post.find({ 'user.uid': req.user.uid }).sort({ createdAt: -1 });
+        res.json(posts);
+    } catch (err) {
+        console.error('Get My Posts Error:', err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// --- Update a post ---
+exports.updatePost = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user.uid !== req.user.uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        const updates = req.body;
+        const updatedPost = await Post.findByIdAndUpdate(req.params.id, { $set: updates }, { new: true });
+
+        res.json(updatedPost);
+    } catch (err) {
+        console.error('Update Post Error:', err.message);
+        res.status(500).send('Server Error');
+    }
+};
+
+// --- Delete a post ---
+exports.deletePost = async (req, res) => {
+    try {
+        const post = await Post.findById(req.params.id);
+
+        if (!post) return res.status(404).json({ msg: 'Post not found' });
+        if (post.user.uid !== req.user.uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        await Post.findByIdAndDelete(req.params.id);
+        res.json({ msg: 'Post deleted successfully' });
+    } catch (err) {
+        console.error('Delete Post Error:', err.message);
+        res.status(500).send('Server Error');
+    }
+};

@@ -5,8 +5,8 @@ let io;
 function initSocket(server) {
     io = new Server(server, {
         cors: {
-            origin: '*', // or specify your frontend URL
-            methods: ['GET', 'POST']
+            origin: 'http://localhost:5173',
+            methods: ['GET','POST']
         }
     });
 
@@ -22,9 +22,7 @@ function initSocket(server) {
 }
 
 function getIO() {
-    if (!io) {
-        throw new Error('Socket.io not initialized! Call initSocket(server) first.');
-    }
+    if (!io) throw new Error('Socket.io not initialized! Call initSocket(server) first.');
     return io;
 }
 
