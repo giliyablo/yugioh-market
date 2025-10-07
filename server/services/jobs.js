@@ -1,0 +1,91 @@
+const puppeteer = require('puppeteer');
+const Post = require('../models/Post');
+const { getMarketPrice, getCardImageFromYugipedia } = require('./cardData');
+const { broadcast } = require('./sse');
+
+// Simple in-memory job queue
+const queue = [];
+let isRunning = false;
+
+function enqueue(job) {
+    queue.push(job);
+    run();
+}
+
+async function run() {
+    if (isRunning) return;
+    isRunning = true;
+    let browser = null;
+    try {
+        browser = await puppeteer.launch({ headless: 'new' });
+    } catch (e) {
+        // If puppeteer fails, we will still try single-mode fetches
+        browser = null;
+    }
+    try {
+        while (queue.length > 0) {
+            const job = queue.shift();
+            await processJob(job, browser);
+        }
+    } finally {
+        if (browser) try { await browser.close(); } catch (_) {}
+        isRunning = false;
+    }
+}
+
+async function processJob(job, sharedBrowser) {
+    const { postId, cardName } = job;
+    const post = await Post.findById(postId);
+    if (!post) return;
+
+    const update = { enrichment: { ...post.enrichment } };
+
+    // Fetch price if missing
+    if (post.price === undefined || post.price === null || post.price === "") {
+        update.enrichment.priceStatus = 'pending';
+        await Post.updateOne({ _id: postId }, { $set: { enrichment: update.enrichment } });
+        try {
+            const result = await getMarketPrice(cardName, sharedBrowser || null);
+            if (result && result.price !== null) {
+                update.price = result.price;
+                update.isApiPrice = true;
+                update.enrichment.priceStatus = 'done';
+            } else {
+                update.enrichment.priceStatus = 'error';
+                update.enrichment.lastError = 'Price not found';
+            }
+        } catch (e) {
+            update.enrichment.priceStatus = 'error';
+            update.enrichment.lastError = e.message;
+        }
+    }
+
+    // Fetch image if placeholder/missing
+    const isPlaceholder = (url) => !url || (typeof url === 'string' && (url.includes('placehold.co') || url == ""));
+    if (isPlaceholder(post.cardImageUrl)) {
+        update.enrichment.imageStatus = 'pending';
+        await Post.updateOne({ _id: postId }, { $set: { enrichment: update.enrichment } });
+        try {
+            const img = await getCardImageFromYugipedia(cardName);
+            if (img) {
+                update.cardImageUrl = img;
+                update.enrichment.imageStatus = 'done';
+            } else {
+                update.enrichment.imageStatus = 'error';
+                update.enrichment.lastError = 'Image not found';
+            }
+        } catch (e) {
+            update.enrichment.imageStatus = 'error';
+            update.enrichment.lastError = e.message;
+        }
+    }
+
+    const saved = await Post.findByIdAndUpdate(postId, { $set: update }, { new: true });
+    if (saved) {
+        broadcast('post.updated', { id: saved._id.toString(), post: saved });
+    }
+}
+
+module.exports = { enqueue };
+
+

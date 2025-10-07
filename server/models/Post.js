@@ -35,6 +35,15 @@ const PostSchema = new mongoose.Schema({
         // A URL to the image of the card, uploaded by the client to a service like Firebase Storage
         default: 'https://placehold.co/243x353?text=No+Image'
     },
+    // Background enrichment status
+    enrichment: {
+        type: Object,
+        default: {
+            priceStatus: 'idle', // idle | pending | done | error
+            imageStatus: 'idle', // idle | pending | done | error
+            lastError: null
+        }
+    },
     isApiPrice: {
         type: Boolean,
         default: false // Flag to indicate if the price was auto-generated
