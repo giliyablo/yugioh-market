@@ -1,39 +1,50 @@
+# Use a modern version of the Docker Compose file format
 version: '3.8'
 
 services:
-  # PostgreSQL Database Service
-  postgres:
-    image: postgres:14-alpine
-    environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: yugioh_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  # Backend Server Service
-  server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    ports:
-      - "5000:5000"
-    environment:
-      # You should use a .env file for these in production
-      DATABASE_URL: postgresql://myuser:mypassword@postgres:5432/yugioh_db
-      FIREBASE_CONFIG: # Your base64 encoded firebase service account key
-    depends_on:
-      - postgres
-
-  # Frontend Client Service
+  # The React Client Service
   client:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
+    build: ./client
+    container_name: client
     ports:
-      - "80:80"
+      - "5173:5173" # Map the Vite dev server port
+    volumes:
+      - ./client:/app # Mount local code into the container
+      - /app/node_modules # Anonymous volume to prevent local node_modules from overwriting the container's
+    depends_on:
+      - server # The client depends on the server being available
+    stdin_open: true # Necessary for Vite's interactive terminal
+    tty: true
 
+  # The Node.js Server Service
+  server:
+    build: ./server
+    container_name: server
+    ports:
+      - "5000:5000" # Map the server's API port
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      # Connection string for MongoDB. It uses the service name 'mongo' as the hostname.
+      # IMPORTANT: Replace the username and password with your own credentials.
+      MONGO_URI: mongodb://your_mongo_user:your_mongo_password@mongo:27017/yugioh_db?authSource=admin
+    depends_on:
+      - mongo # The server depends on the database being available
+
+  # The MongoDB Database Service
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - "27017:27017" # Map the MongoDB port
+    volumes:
+      - mongo-data:/data/db # Use a named volume to persist database data
+    environment:
+      # IMPORTANT: Set your desired root username and password for the database.
+      MONGO_INITDB_ROOT_USERNAME: your_mongo_user
+      MONGO_INITDB_ROOT_PASSWORD: your_mongo_password
+
+# Define the named volume for data persistence
 volumes:
-  postgres_data:
+  mongo-data:

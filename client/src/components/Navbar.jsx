@@ -35,7 +35,7 @@ const Navbar = ({ onOpenCreateModal }) => {
         <nav className="navbar">
             <div className="navbar__left">
                 <Link to="/" className="navbar__logo">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Yu-Gi-Oh%21_Logo.svg" alt="Logo" className="navbar__logo-img" />
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Yu-Gi-Oh%21_%28Logo%29.jpg" alt="Logo" className="navbar__logo-img" />
                     Market IL
                 </Link>
             </div>
