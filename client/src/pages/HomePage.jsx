@@ -176,16 +176,15 @@ const HomePage = () => {
                                     <td>{post.user?.contact?.phoneNumber || post.user?.contact?.email || '-'}</td>
                                     <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                                     <td>
-                                        {currentUser && post.user?.uid === currentUser.uid && (
+                                        {currentUser && post.user?.uid === currentUser.uid ? (
                                             <div className="flex flex-col gap-2">
                                                 <button className="btn btn-xs btn-outline" onClick={() => setEditingPost(post)}>Edit</button>
                                                 <button className="btn btn-xs btn-outline btn-success" onClick={() => handleCompletePost(post)}>Complete</button>
                                                 <button className="btn btn-xs btn-outline btn-error" onClick={() => handleDelete(post._id)}>Delete</button>
                                             </div>
-                                        )}
-                                        {currentUser && post.user?.uid !== currentUser.uid && (
+                                        ) : currentUser ? (
                                              <button className="btn btn-xs btn-primary">Contact</button>
-                                        )}
+                                        ) : null}
                                     </td>
                                 </tr>
                             ))
@@ -226,6 +225,7 @@ const HomePage = () => {
 
             {editingPost && (
                 <EditPostModal
+                    key={editingPost._id} 
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}

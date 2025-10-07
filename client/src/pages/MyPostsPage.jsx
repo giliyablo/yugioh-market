@@ -114,6 +114,7 @@ const MyPostsPage = () => {
         <div>
             {editingPost && (
                 <EditPostModal
+                    key={editingPost._id} // This forces the modal to re-mount when the post changes
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}

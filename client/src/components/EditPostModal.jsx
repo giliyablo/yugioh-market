@@ -1,54 +1,84 @@
-import React, { useState } from 'react';
-import { updatePost } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { updatePost, fetchCardImage, fetchMarketPrice } from '../services/api';
+import { ImageDown, Search } from 'lucide-react';
 
 const EditPostModal = ({ post, onClose, onUpdate }) => {
-    const [formData, setFormData] = useState({
-        cardName: post.cardName,
-        price: post.price,
-        condition: post.condition || 'Near Mint',
-        postType: post.postType,
-    });
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formData, setFormData] = useState(post);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // This effect ensures the form resets if a new post is selected
+    useEffect(() => {
+        setFormData(post);
+    }, [post]);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        setError('');
+    const handleFetchImage = async () => {
+        if (!formData.cardName) return;
+        setLoading(true);
         try {
-            const res = await updatePost(post._id, formData);
-            onUpdate(res.data); // Pass the updated post back to the parent
+            const res = await fetchCardImage(formData.cardName);
+            setFormData({ ...formData, cardImageUrl: res.data.imageUrl });
         } catch (err) {
-            setError('Failed to update post. Please try again.');
-            console.error(err);
+            console.error("Failed to fetch image", err);
         } finally {
-            setIsSubmitting(false);
+            setLoading(false);
         }
     };
 
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        try {
+            const { data } = await updatePost(post._id, formData);
+            onUpdate(data); // This calls handlePostUpdate in HomePage
+        } catch (err) {
+            setError('Failed to update post.');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // By adding the `modal-open` class, its visibility is controlled by the parent.
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-                <h2 className="text-2xl font-bold mb-6">Edit Post</h2>
-                <form onSubmit={handleSubmit}>
-                    {/* Card Name Field */}
-                    <div className="mb-4">
-                        <label htmlFor="cardName" className="block text-sm font-medium text-gray-700">Card Name</label>
-                        <input type="text" name="cardName" id="cardName" value={formData.cardName} onChange={handleChange} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+        <dialog className="modal modal-open">
+            <div className="modal-box">
+                {/* This button now correctly calls the onClose function */}
+                <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={onClose}>✕</button>
+                
+                <h3 className="font-bold text-lg">Edit Post</h3>
+                <form onSubmit={handleSubmit} className="py-4 space-y-4">
+                    <div className="form-control">
+                        <label className="label"><span className="label-text">Card Name</span></label>
+                        <div className="join w-full">
+                            <input type="text" name="cardName" placeholder="Card Name" className="input input-bordered w-full join-item" value={formData.cardName || ''} onChange={handleChange} required />
+                            <button type="button" className="btn join-item" onClick={handleFetchImage} disabled={loading || !formData.cardName}>
+                                {loading ? <span className="loading loading-spinner-xs"></span> : <ImageDown size={16} />}
+                            </button>
+                        </div>
                     </div>
-                    {/* Price Field */}
-                    <div className="mb-4">
-                        <label htmlFor="price" className="block text-sm font-medium text-gray-700">Price (₪)</label>
-                        <input type="number" name="price" id="price" value={formData.price} onChange={handleChange} required min="0" step="0.01" className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                    
+                    <div className="form-control">
+                        <label className="label"><span className="label-text">Post Type</span></label>
+                        <select name="postType" className="select select-bordered w-full" value={formData.postType || 'sell'} onChange={handleChange}>
+                            <option value="sell">I want to Sell</option>
+                            <option value="buy">I want to Buy</option>
+                        </select>
                     </div>
-                    {/* Condition Field */}
-                    <div className="mb-4">
-                        <label htmlFor="condition" className="block text-sm font-medium text-gray-700">Condition</label>
-                        <select name="condition" id="condition" value={formData.condition} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+
+                    <div className="form-control">
+                        <label className="label"><span className="label-text">Price ($)</span></label>
+                        <input type="number" name="price" placeholder="Price" className="input input-bordered w-full" value={formData.price || ''} onChange={handleChange} />
+                    </div>
+
+                    <div className="form-control">
+                        <label className="label"><span className="label-text">Condition</span></label>
+                        <select name="condition" className="select select-bordered w-full" value={formData.condition || 'Near Mint'} onChange={handleChange}>
                             <option>Mint</option>
                             <option>Near Mint</option>
                             <option>Lightly Played</option>
@@ -57,25 +87,20 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                             <option>Damaged</option>
                         </select>
                     </div>
-                     {/* Post Type Field */}
-                    <div className="mb-4">
-                        <label htmlFor="postType" className="block text-sm font-medium text-gray-700">Post Type</label>
-                        <select name="postType" id="postType" value={formData.postType} onChange={handleChange} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
-                           <option value="sell">Sell</option>
-                           <option value="buy">Buy</option>
-                        </select>
-                    </div>
-
-                    {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-                    <div className="flex justify-end gap-4">
-                        <button type="button" onClick={onClose} className="py-2 px-4 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancel</button>
-                        <button type="submit" disabled={isSubmitting} className="py-2 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-300">
-                            {isSubmitting ? 'Saving...' : 'Save Changes'}
+                    
+                    {error && <p className="text-red-500 text-sm">{error}</p>}
+                    
+                    <div className="modal-action">
+                        <button type="button" className="btn" onClick={onClose} disabled={loading}>Cancel</button>
+                        <button type="submit" className="btn btn-primary" disabled={loading}>
+                            {loading ? <span className="loading loading-spinner"></span> : "Save Changes"}
                         </button>
                     </div>
                 </form>
             </div>
-        </div>
+             {/* Add a backdrop that also closes the modal */}
+            <div className="modal-backdrop" onClick={onClose}></div>
+        </dialog>
     );
 };
 
