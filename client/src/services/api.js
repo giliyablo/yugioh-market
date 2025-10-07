@@ -2,7 +2,7 @@ import axios from 'axios';
 import { auth } from './firebase';
 
 // Set the base URL for your backend server
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
     baseURL: API_URL,
@@ -50,13 +50,4 @@ export const updatePost = (id, payload) => api.put(`/posts/${id}`, payload);
 // Delete a post
 export const deletePost = (id) => api.delete(`/posts/${id}`);
 
-// --- Utility Functions ---
-
-// Fetch a card image URL from the server's scraper
-export const fetchCardImage = (cardName) => api.post('/posts/fetch-image', { cardName });
-
-// Fetch the market price from the server's scraper
-export const fetchMarketPrice = (cardName) => api.post('/posts/fetch-price', { cardName });
-
 export default api;
-

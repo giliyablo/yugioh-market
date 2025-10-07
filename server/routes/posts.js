@@ -8,8 +8,6 @@ const {
     updatePost,
     deletePost,
     getMyPosts,
-    getCardImageFromWiki,
-    getCardPriceFromTCG
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -25,29 +23,18 @@ router.get('/my-posts', authMiddleware, getMyPosts);
 
 // @route   POST /api/posts
 // @desc    Create a single new post
-// @access  Private (Requires authentication)
+// @access  Private
 router.post('/', authMiddleware, createPost);
 
 // @route   POST /api/posts/batch
-// @desc    Create multiple posts from a file upload
-// @access  Private (Requires authentication)
-// Note: This is a complex endpoint and the controller has a placeholder implementation.
+// @desc    Create multiple posts from a file upload (Placeholder)
+// @access  Private
 router.post('/batch', authMiddleware, createBatchPosts);
 
 // @route   POST /api/posts/batch-list
 // @desc    Create multiple posts from a list of card names
-// @access  Private (Requires authentication)
+// @access  Private
 router.post('/batch-list', authMiddleware, createPostsFromList);
-
-// @route   POST /api/posts/fetch-image
-// @desc    Returns an image URL for a given card name by scraping
-// @access  Private
-router.post('/fetch-image', authMiddleware, getCardImageFromWiki);
-
-// @route   POST /api/posts/fetch-price
-// @desc    Returns a market price for a given card name by scraping
-// @access  Private
-router.post('/fetch-price', authMiddleware, getCardPriceFromTCG);
 
 // @route   PUT /api/posts/:id
 // @desc    Update a post (owner only)
@@ -60,4 +47,3 @@ router.put('/:id', authMiddleware, updatePost);
 router.delete('/:id', authMiddleware, deletePost);
 
 module.exports = router;
-
