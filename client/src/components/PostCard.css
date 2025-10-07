@@ -1,0 +1,133 @@
+/* PostCard.css */
+
+/* Base styles for the card container */
+.post-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border-top: 4px solid transparent; /* Placeholder for the accent color */
+}
+
+.post-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Modifier classes for the top border color */
+.post-card--sell {
+    border-top-color: var(--color-primary); /* Blue for selling */
+}
+
+.post-card--buy {
+    border-top-color: var(--color-success); /* Green for buying */
+}
+
+/* Image styles */
+.post-card__image-container {
+    padding: 0.75rem;
+    padding-bottom: 0;
+}
+
+.post-card__image {
+    width: 100%;
+    height: 250px; /* Fixed height for consistency */
+    object-fit: contain; /* Use contain to show the whole card */
+    border-radius: 8px;
+}
+
+/* Card body and content styles */
+.post-card__body {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allows the body to fill remaining space */
+}
+
+.post-card__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* Adds "..." for long text */
+    margin-bottom: 0.5rem;
+}
+
+.post-card__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.post-card__condition {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.post-card__price {
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-grow: 1; /* Pushes the actions to the bottom */
+}
+
+/* Card actions and user info */
+.post-card__actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto; /* Aligns to the bottom */
+}
+
+.post-card__user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.post-card__user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+
+/* Reusable badge styles */
+.badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.badge--info {
+    background-color: rgba(122, 162, 247, 0.2);
+    color: var(--color-primary);
+}
+
+.badge--success {
+    background-color: rgba(158, 206, 106, 0.2);
+    color: var(--color-success);
+}
+
+.badge--outline {
+    background-color: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-secondary);
+    font-size: 0.7rem;
+}

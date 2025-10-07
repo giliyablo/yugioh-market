@@ -1,13 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-
+import './HomePage.css'; // Re-use the same CSS file for a consistent look
 
 const NotFoundPage = () => {
   return (
-    <div className="text-center py-20">
-      <h1 className="text-6xl font-bold">404</h1>
-      <p className="text-xl mt-4 mb-8">Oops! Page not found.</p>
-      <Link to="/" className="btn btn-primary">Go back to Home</Link>
+    <div className="not-found-container">
+      <h1 className="not-found-title">404</h1>
+      <p className="not-found-text">Oops! The page you're looking for does not exist.</p>
+      <Link to="/" className="btn btn--primary">
+        Go back to Home
+      </Link>
     </div>
   );
 };

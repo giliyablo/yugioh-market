@@ -1,0 +1,159 @@
+/* Navbar.css */
+
+/* Main navbar container */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 2rem;
+    background-color: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    gap: 2rem;
+}
+
+/* Left section: Logo */
+.navbar__left .navbar__logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.25rem;
+    font-weight: bold;
+    color: var(--color-text-primary);
+    text-decoration: none;
+    transition: transform 0.2s ease;
+}
+
+.navbar__logo:hover {
+    transform: scale(1.05);
+}
+
+.navbar__logo-img {
+    height: 32px;
+}
+
+/* Center section: Search form */
+.navbar__center {
+    flex-grow: 1;
+}
+
+.search-form {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-form .form-input {
+    flex-grow: 1;
+}
+
+/* Right section: User actions */
+.navbar__right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* User Dropdown Menu */
+.user-dropdown {
+    position: relative;
+}
+
+.user-dropdown__trigger {
+    background: none;
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+    padding: 2px;
+    cursor: pointer;
+    display: block;
+    transition: border-color 0.2s ease;
+}
+
+.user-dropdown__trigger:hover,
+.user-dropdown__trigger:focus {
+    border-color: var(--color-primary);
+}
+
+.user-dropdown__trigger img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: block;
+}
+
+.user-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    width: 220px;
+    padding: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+}
+
+/* Show the dropdown on hover or focus */
+.user-dropdown:hover .user-dropdown__menu,
+.user-dropdown__trigger:focus + .user-dropdown__menu,
+.user-dropdown__menu:hover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-dropdown__header {
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.user-dropdown__header strong {
+    color: var(--color-text-primary);
+}
+
+.user-dropdown__header small {
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-dropdown__divider {
+    height: 1px;
+    background-color: var(--color-border);
+    margin: 0.5rem 0;
+}
+
+.user-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.user-dropdown__item:hover {
+    background-color: rgba(122, 162, 247, 0.1);
+    color: var(--color-primary);
+}
+
+.user-dropdown__item--danger:hover {
+    background-color: rgba(247, 118, 142, 0.1);
+    color: var(--color-danger);
+}

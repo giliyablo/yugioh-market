@@ -1,8 +1,9 @@
 import React from 'react';
 
-
 const LoadingSpinner = () => {
-  return <span className="loading loading-spinner loading-lg"></span>;
+  // We use a div here instead of a span for better block-level behavior,
+  // but a span would also work.
+  return <div className="loading-spinner"></div>;
 };
 
 export default LoadingSpinner;

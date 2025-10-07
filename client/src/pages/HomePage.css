@@ -1,0 +1,371 @@
+/* HomePage.css */
+
+/* Define a modern color palette using CSS variables */
+:root {
+    --color-background: #1a1b26;
+    --color-surface: #24283b;
+    --color-text-primary: #c0caf5;
+    --color-text-secondary: #a9b1d6;
+    --color-border: #414868;
+    --color-primary: #7aa2f7;
+    --color-secondary: #c0caf5;
+    --color-success: #9ece6a;
+    --color-danger: #f7768e;
+    --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Base styles for the page */
+.home-page {
+    font-family: var(--font-family-sans);
+    color: var(--color-text-primary);
+    padding: 1rem 2rem;
+}
+
+.page-title {
+    font-size: 2.25rem;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    color: var(--color-text-primary);
+}
+
+/* Styles for the main table container */
+.table-container {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    overflow: hidden; /* Ensures the border-radius clips the table corners */
+}
+
+.posts-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.posts-table th, .posts-table td {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+    vertical-align: middle;
+}
+
+.posts-table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.posts-table tbody tr:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.posts-table tbody tr:hover {
+    background-color: rgba(122, 162, 247, 0.1); /* Use primary color with opacity for hover */
+}
+
+.posts-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Specific cell styles */
+.table-cell-image img {
+    max-width: 80px;
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.capitalize {
+    text-transform: capitalize;
+}
+
+.price-cell, .actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.actions-cell {
+    flex-wrap: wrap;
+}
+
+/* Sorting button in the table header */
+.sort-header {
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: color 0.2s ease-in-out;
+}
+
+.sort-header:hover {
+    color: var(--color-primary);
+}
+
+.sort-icon {
+    font-size: 1.1em;
+}
+
+/* Button styles */
+.btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+}
+
+.btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn--primary { border-color: var(--color-primary); color: var(--color-primary); }
+.btn--secondary { border-color: var(--color-secondary); color: var(--color-secondary); }
+.btn--success { border-color: var(--color-success); color: var(--color-success); }
+.btn--danger { border-color: var(--color-danger); color: var(--color-danger); }
+
+.btn--primary:hover:not(:disabled) { background-color: var(--color-primary); color: var(--color-background); }
+.btn--secondary:hover:not(:disabled) { background-color: var(--color-secondary); color: var(--color-background); }
+.btn--success:hover:not(:disabled) { background-color: var(--color-success); color: var(--color-background); }
+.btn--danger:hover:not(:disabled) { background-color: var(--color-danger); color: var(--color-background); }
+
+/* Pagination controls */
+.pagination-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1.5rem;
+    padding: 0.5rem;
+}
+
+.pagination-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--color-text-secondary);
+}
+
+.select-rows {
+    background-color: var(--color-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.4rem;
+}
+
+/* Misc utility classes */
+.loading-container, .error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 50vh;
+    font-size: 1.2rem;
+}
+.error-container { color: var(--color-danger); }
+.table-cell-empty { text-align: center; padding: 3rem 0; color: var(--color-text-secondary); }
+.tooltip { cursor: help; }
+
+
+/* Header for pages with a title and a back button */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Styles for status badges */
+.status-badge {
+    padding: 0.3rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-badge--active {
+    background-color: rgba(158, 206, 106, 0.2); /* success color with opacity */
+    color: var(--color-success);
+}
+
+.status-badge--completed {
+    background-color: rgba(122, 162, 247, 0.2); /* info color with opacity */
+    color: var(--color-info);
+}
+
+/* Style for inactive (completed) table rows */
+.is-inactive {
+    opacity: 0.6;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.is-inactive:hover {
+    opacity: 0.8;
+}
+
+/* New color variables and button style for "Re-list" */
+:root {
+    --color-info: #7dcfff;
+}
+
+.btn--info { border-color: var(--color-info); color: var(--color-info); }
+.btn--info:hover:not(:disabled) { background-color: var(--color-info); color: var(--color-background); }
+
+
+
+/* Container for the 404 Not Found page */
+.not-found-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 60vh; /* Takes up a good portion of the screen height */
+}
+
+.not-found-title {
+    font-size: 8rem; /* Large font size for the 404 text */
+    font-weight: 900;
+    color: var(--color-primary);
+    line-height: 1;
+}
+
+.not-found-text {
+    font-size: 1.5rem;
+    color: var(--color-text-secondary);
+    margin-top: 1rem;
+    margin-bottom: 2rem;
+}
+
+
+/* ADD THESE STYLES TO THE BOTTOM OF HomePage.css */
+
+/* General styles for form inputs, selects, and textareas */
+.form-input {
+    width: 100%;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.2);
+}
+
+.form-input::placeholder {
+    color: var(--color-text-secondary);
+    opacity: 0.7;
+}
+
+/* Wrapper for horizontally aligned form elements */
+.form-group-inline {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Styles for a checkbox/toggle switch with a label */
+.form-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+/* Style for form error messages */
+.form-error {
+    color: var(--color-danger);
+    font-size: 0.875rem;
+}
+
+/* A simple loading spinner animation */
+.loading-spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid var(--color-primary);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+
+/* ADD THESE STYLES TO THE BOTTOM OF HomePage.css */
+
+/* Container for the Access Denied message */
+.access-denied-container {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    padding: 3rem;
+    margin: 4rem auto;
+    max-width: 500px;
+}
+
+.access-denied-title {
+    font-size: 1.75rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: var(--color-text-primary);
+}
+
+.access-denied-text {
+    color: var(--color-text-secondary);
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+}
+
+/* Helper class to align content inside a button */
+.btn__content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+
+/* ADD THIS STYLE TO THE BOTTOM OF HomePage.css */
+
+/* Modifier for smaller form inputs, perfect for navbars */
+.form-input--sm {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+

@@ -6,6 +6,7 @@ import CreatePostModal from '../components/CreatePostModal';
 import EditPostModal from '../components/EditPostModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { Info } from 'lucide-react';
+import './HomePage.css'; // Import the new custom CSS
 
 const HomePage = () => {
     const [searchParams] = useSearchParams();
@@ -84,16 +85,7 @@ const HomePage = () => {
         }
     };
 
-    if (loading) {
-        return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
-    }
-    
-    if (error) {
-        return <div className="text-center text-red-500 mt-20">{error}</div>;
-    }
-
     const cycleSort = (column) => {
-        // cycles: none -> asc -> desc -> none
         let nextBy = sortBy;
         let nextDir = sortDir;
         if (sortBy !== column) {
@@ -120,17 +112,25 @@ const HomePage = () => {
         const dir = active ? sortDir : '';
         const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
         return (
-            <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
-                {label} {icon}
+            <button className="sort-header" onClick={() => cycleSort(column)}>
+                {label} <span className="sort-icon">{icon}</span>
             </button>
         );
     };
 
+    if (loading) {
+        return <div className="loading-container"><LoadingSpinner /></div>;
+    }
+    
+    if (error) {
+        return <div className="error-container">{error}</div>;
+    }
+
     return (
-        <div>
-            <h1 className="text-3xl font-bold mb-6">Posts</h1>
-            <div className="overflow-x-auto bg-base-100 rounded-box shadow">
-                <table className="table table-zebra">
+        <div className="home-page">
+            <h1 className="page-title">Posts</h1>
+            <div className="table-container">
+                <table className="posts-table">
                     <thead>
                         <tr>
                             <th><SortHeader label="Card" column="cardName" /></th>
@@ -148,25 +148,21 @@ const HomePage = () => {
                         {posts.length > 0 ? (
                             posts.map((post) => (
                                 <tr key={post._id}>
-                                    <td>
+                                    <td className="table-cell-image">
                                         <img
                                             src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
                                             alt={post.cardName}
                                             loading="lazy"
-                                            width={160}
-                                            height={240}
-                                            className="object-cover rounded"
-                                            style={{ width: '160px', height: '240px' }}
                                         />
                                     </td>
-                                    <td className="whitespace-pre-wrap">{post.cardName}</td>
+                                    <td>{post.cardName}</td>
                                     <td className="capitalize">{post.postType}</td>
                                     <td>
-                                        <div className="flex items-center gap-1">
+                                        <div className="price-cell">
                                             <span>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</span>
                                             {post.isApiPrice && (
-                                                <div className="tooltip" data-tip="Price from TCGplayer (Market)">
-                                                    <Info size={16} className="text-info" />
+                                                <div className="tooltip" title="Price from TCGplayer (Market)">
+                                                    <Info size={16} />
                                                 </div>
                                             )}
                                         </div>
@@ -176,43 +172,45 @@ const HomePage = () => {
                                     <td>{post.user?.contact?.phoneNumber || post.user?.contact?.email || '-'}</td>
                                     <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                                     <td>
-                                        {currentUser && post.user?.uid === currentUser.uid ? (
-                                            <div className="flex flex-col gap-2">
-                                                <button className="btn btn-xs btn-outline" onClick={() => setEditingPost(post)}>Edit</button>
-                                                <button className="btn btn-xs btn-outline btn-success" onClick={() => handleCompletePost(post)}>Complete</button>
-                                                <button className="btn btn-xs btn-outline btn-error" onClick={() => handleDelete(post._id)}>Delete</button>
-                                            </div>
-                                        ) : currentUser ? (
-                                             <button className="btn btn-xs btn-primary">Contact</button>
-                                        ) : null}
+                                        <div className="actions-cell">
+                                            {currentUser && post.user?.uid === currentUser.uid ? (
+                                                <>
+                                                    <button className="btn btn--secondary" onClick={() => setEditingPost(post)}>Edit</button>
+                                                    <button className="btn btn--success" onClick={() => handleCompletePost(post)}>Complete</button>
+                                                    <button className="btn btn--danger" onClick={() => handleDelete(post._id)}>Delete</button>
+                                                </>
+                                            ) : currentUser ? (
+                                                <button className="btn btn--primary">Contact</button>
+                                            ) : null}
+                                        </div>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={9} className="text-center py-10">No posts found.</td>
+                                <td colSpan={9} className="table-cell-empty">No posts found.</td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            <div className="flex items-center justify-between mt-4">
-                <div className="join">
-                    <button className="btn join-item" disabled={page <= 1} onClick={() => {
+            <div className="pagination-controls">
+                <div className="pagination-buttons">
+                    <button className="btn" disabled={page <= 1} onClick={() => {
                         const params = new URLSearchParams(window.location.search);
                         params.set('page', String(page - 1));
                         navigate({ search: params.toString() });
                     }}>Prev</button>
-                    <button className="btn join-item" disabled={page >= totalPages} onClick={() => {
+                    <button className="btn" disabled={page >= totalPages} onClick={() => {
                         const params = new URLSearchParams(window.location.search);
                         params.set('page', String(page + 1));
                         navigate({ search: params.toString() });
                     }}>Next</button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="pagination-info">
                     <span>Rows:</span>
-                    <select className="select select-bordered select-sm" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
+                    <select className="select-rows" value={limit} onChange={(e) => setLimit(Number(e.target.value))}>
                         <option value={10}>10</option>
                         <option value={20}>20</option>
                         <option value={50}>50</option>
@@ -222,10 +220,9 @@ const HomePage = () => {
             </div>
             
             <CreatePostModal onPostCreated={handlePostCreated} />
-
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id} // This key is crucial for re-rendering
+                    key={editingPost._id}
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}
@@ -236,4 +233,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-

@@ -4,7 +4,7 @@ import { getMyPosts, updatePost, deletePost } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EditPostModal from '../components/EditPostModal';
 import { Info } from 'lucide-react';
-
+import './HomePage.css'; // Re-use the same CSS file for a consistent look
 
 const MyPostsPage = () => {
     const [posts, setPosts] = useState([]);
@@ -95,39 +95,38 @@ const MyPostsPage = () => {
         });
     }, [posts, sortBy, sortDir]);
 
-
     const SortHeader = ({ label, column }) => {
         const active = sortBy === column;
         const dir = active ? sortDir : '';
         const icon = dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '↕';
         return (
-            <button className="btn btn-ghost btn-xs" onClick={() => cycleSort(column)}>
-                {label} {icon}
+            <button className="sort-header" onClick={() => cycleSort(column)}>
+                {label} <span className="sort-icon">{icon}</span>
             </button>
         );
     };
 
-    if (loading) return <div className="flex justify-center mt-20"><LoadingSpinner /></div>;
-    if (error) return <div className="text-center text-red-500 mt-20">{error}</div>;
+    if (loading) return <div className="loading-container"><LoadingSpinner /></div>;
+    if (error) return <div className="error-container">{error}</div>;
 
     return (
-        <div>
+        <div className="home-page">
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id} // This is the fix
+                    key={editingPost._id}
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}
                 />
             )}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold">My Posts</h1>
-                <Link to="/" className="btn btn-outline">
+            <div className="page-header">
+                <h1 className="page-title">My Posts</h1>
+                <Link to="/" className="btn btn--secondary">
                     ← Back to All Posts
                 </Link>
             </div>
-            <div className="overflow-x-auto bg-base-100 rounded-box shadow">
-                <table className="table table-zebra w-full">
+            <div className="table-container">
+                <table className="posts-table">
                     <thead>
                         <tr>
                             <th>Status</th>
@@ -143,33 +142,29 @@ const MyPostsPage = () => {
                     <tbody>
                         {sortedPosts.length > 0 ? (
                             sortedPosts.map((post) => (
-                                <tr key={post._id} className={!post.isActive ? 'opacity-50' : ''}>
+                                <tr key={post._id} className={!post.isActive ? 'is-inactive' : ''}>
                                     <td>
                                         {post.isActive ? (
-                                            <span className="badge badge-success">Active</span>
+                                            <span className="status-badge status-badge--active">Active</span>
                                         ) : (
-                                            <span className="badge badge-ghost">Completed</span>
+                                            <span className="status-badge status-badge--completed">Completed</span>
                                         )}
                                     </td>
-                                    <td>
+                                    <td className="table-cell-image">
                                         <img
                                             src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
                                             alt={post.cardName}
                                             loading="lazy"
-                                            width={160}
-                                            height={240}
-                                            className="object-cover rounded"
-                                            style={{ width: '160px', height: '240px' }}
                                         />
                                     </td>
-                                    <td className="whitespace-pre-wrap font-semibold">{post.cardName}</td>
+                                    <td>{post.cardName}</td>
                                     <td className="capitalize">{post.postType}</td>
                                     <td>
-                                        <div className="flex items-center gap-1">
+                                        <div className="price-cell">
                                             <span>{post.price !== undefined && post.price !== null ? `$${Number(post.price).toFixed(2)}` : '-'}</span>
                                             {post.isApiPrice && (
-                                                <div className="tooltip" data-tip="Price from TCGplayer (Market)">
-                                                    <Info size={16} className="text-info" />
+                                                <div className="tooltip" title="Price from TCGplayer (Market)">
+                                                    <Info size={16} />
                                                 </div>
                                             )}
                                         </div>
@@ -177,22 +172,22 @@ const MyPostsPage = () => {
                                     <td>{post.condition}</td>
                                     <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                                     <td>
-                                        <div className="flex flex-col gap-2">
-                                            <button className="btn btn-xs btn-outline" onClick={() => setEditingPost(post)}>Edit</button>
+                                        <div className="actions-cell">
+                                            <button className="btn btn--secondary" onClick={() => setEditingPost(post)}>Edit</button>
                                             <button
-                                                className={`btn btn-xs btn-outline ${post.isActive ? 'btn-success' : 'btn-info'}`}
+                                                className={`btn ${post.isActive ? 'btn--success' : 'btn--info'}`}
                                                 onClick={() => togglePostStatus(post)}
                                             >
                                                 {post.isActive ? 'Complete' : 'Re-list'}
                                             </button>
-                                            <button className="btn btn-xs btn-outline btn-error" onClick={() => handleDelete(post._id)}>Delete</button>
+                                            <button className="btn btn--danger" onClick={() => handleDelete(post._id)}>Delete</button>
                                         </div>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="8" className="text-center py-10">You have not created any posts yet.</td>
+                                <td colSpan="8" className="table-cell-empty">You have not created any posts yet.</td>
                             </tr>
                         )}
                     </tbody>
@@ -203,4 +198,3 @@ const MyPostsPage = () => {
 };
 
 export default MyPostsPage;
-
