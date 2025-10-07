@@ -78,7 +78,6 @@ const MyPostsPage = () => {
     const sortedPosts = useMemo(() => {
         if (!sortBy) return posts;
         return [...posts].sort((a, b) => {
-            // Basic nested property accessor
             const getField = (obj, path) => path.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
             
             const valA = getField(a, sortBy);
@@ -114,7 +113,6 @@ const MyPostsPage = () => {
         <div>
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id} // This forces the modal to re-mount when the post changes
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}

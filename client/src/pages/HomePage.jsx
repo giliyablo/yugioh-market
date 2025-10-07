@@ -225,7 +225,6 @@ const HomePage = () => {
 
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id} 
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}
