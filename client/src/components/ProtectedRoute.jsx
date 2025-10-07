@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LogIn } from 'lucide-react';
+import '../index.css'
 
 const ProtectedRoute = ({ children }) => {
   const { currentUser, loginWithGoogle } = useAuth();

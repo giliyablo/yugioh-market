@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, facebookProvider } from '../services/firebase';
 import LoadingSpinner from '../components/LoadingSpinner';
+import '../index.css'
 
 const AuthContext = createContext();
 

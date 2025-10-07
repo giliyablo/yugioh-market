@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, LogOut, PlusCircle, User, List } from 'lucide-react';
+import '../index.css'
 
 const Navbar = () => {
     const { currentUser, loginWithGoogle, logout } = useAuth();

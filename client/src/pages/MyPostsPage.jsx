@@ -4,6 +4,7 @@ import { getMyPosts, updatePost, deletePost } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 import EditPostModal from '../components/EditPostModal';
 import { Info } from 'lucide-react';
+import '../index.css'
 
 const MyPostsPage = () => {
     const [posts, setPosts] = useState([]);
