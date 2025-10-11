@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: yugioh-market-server
+  namespace: yugioh-market
+  labels:
+    app: yugioh-market-server
+spec:
+  selector:
+    app: yugioh-market-server
+  ports:
+  - port: 5000
+    targetPort: 5000
+    protocol: TCP
+  type: ClusterIP
