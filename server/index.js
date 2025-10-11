@@ -24,27 +24,37 @@ try {
             });
             console.log("Firebase Admin SDK initialized with Application Default Credentials for project: fourth-arena-474414-h6");
         } else {
-            console.error("❌ No authentication credentials found!");
-            console.error("Please set either:");
-            console.error("1. FIREBASE_SERVICE_ACCOUNT_JSON environment variable with your service account JSON");
-            console.error("2. GOOGLE_APPLICATION_CREDENTIALS environment variable pointing to your service account file");
-            console.error("3. Run 'gcloud auth application-default login' to set up Application Default Credentials");
-            process.exit(1);
+            console.warn("⚠️  No Firebase credentials found - running in development mode");
+            console.warn("⚠️  Authentication and database features will not work");
+            console.warn("⚠️  To enable full functionality, set FIREBASE_SERVICE_ACCOUNT_JSON");
+            // Don't exit, continue with mock db
         }
     } else {
         console.log("Firebase Admin SDK already initialized");
     }
 } catch (error) {
-    console.error("❌ Error initializing Firebase Admin SDK:", error.message);
+    console.warn("⚠️  Error initializing Firebase Admin SDK:", error.message);
+    console.warn("⚠️  Running in development mode without Firebase");
     if (error.message.includes('JSON')) {
-        console.error("❌ Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON. Please check your environment variable.");
+        console.warn("⚠️  Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON. Running without Firebase.");
     }
-    process.exit(1);
+    // Don't exit, continue with mock db
 }
 
 // --- Initialize Firestore ---
-const db = admin.firestore();
-console.log("Firestore initialized successfully.");
+let db;
+try {
+    if (admin.apps.length > 0) {
+        db = admin.firestore();
+        console.log("Firestore initialized successfully.");
+    } else {
+        console.warn("⚠️  Firebase not initialized - using mock database");
+        db = null; // Will be handled in routes
+    }
+} catch (error) {
+    console.warn("⚠️  Error initializing Firestore:", error.message);
+    db = null;
+}
 
 // Export db for use in other modules
 module.exports = { db };
