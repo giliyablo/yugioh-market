@@ -33,6 +33,8 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo 'echo "Starting nginx on port $PORT"' >> /start.sh && \
     echo 'sed -i "s/listen 8080;/listen $PORT;/" /etc/nginx/conf.d/default.conf' >> /start.sh && \
     echo 'echo "Updated nginx config to listen on port $PORT"' >> /start.sh && \
+    echo 'echo "Nginx configuration:"' >> /start.sh && \
+    echo 'cat /etc/nginx/conf.d/default.conf' >> /start.sh && \
     echo 'exec nginx -g "daemon off;"' >> /start.sh && \
     chmod +x /start.sh
 

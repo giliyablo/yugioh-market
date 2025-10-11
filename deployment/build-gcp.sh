@@ -6,26 +6,30 @@ PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
+REPO_URL="https://github.com/your-username/your-repo-name"  # Update this with your actual repo URL
+BRANCH="main"  # Update this to your default branch
 
 # Check for resume flag
 RESUME_FROM=${1:-""}
 
-echo "🚀 Deploying TCG Marketplace to Google Cloud Platform..."
+echo "🚀 Building TCG Marketplace images from GitHub repository..."
+echo "📦 Repository: $REPO_URL"
+echo "🌿 Branch: $BRANCH"
 
 # If resuming, skip to the failed step
 if [ "$RESUME_FROM" = "client" ]; then
-    echo "🔄 Resuming deployment from client build..."
+    echo "🔄 Resuming build from client..."
     SKIP_SERVER=true
-    SKIP_CLIENT_BUILD=false
+    SKIP_CLIENT=false
 elif [ "$RESUME_FROM" = "client-deploy" ]; then
-    echo "🔄 Resuming deployment from client deployment..."
+    echo "🔄 Resuming build from client deployment..."
     SKIP_SERVER=true
-    SKIP_CLIENT_BUILD=true
+    SKIP_CLIENT=true
     SKIP_CLIENT_DEPLOY=false
 else
-    echo "🔄 Starting fresh deployment..."
+    echo "🔄 Starting fresh build..."
     SKIP_SERVER=false
-    SKIP_CLIENT_BUILD=false
+    SKIP_CLIENT=false
     SKIP_CLIENT_DEPLOY=false
 fi
 
@@ -48,48 +52,55 @@ gcloud services enable containerregistry.googleapis.com
 gcloud services enable firestore.googleapis.com
 gcloud services enable storage.googleapis.com
 gcloud services enable compute.googleapis.com
+gcloud services enable sourcerepo.googleapis.com
 
-# Build and push server image (skip if resuming)
-if [ "$SKIP_SERVER" = "false" ]; then
-    echo "🐳 Building and pushing server image..."
-    cd server
-    gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest .
-    cd ..
-
-    # Deploy server to Cloud Run
-    echo "☁️ Deploying server to Cloud Run..."
-    gcloud run deploy $SERVER_SERVICE \
-      --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
-      --platform managed \
-      --region $REGION \
-      --allow-unauthenticated \
-      --port 8080 \
-      --memory 2Gi \
-      --cpu 2 \
-      --min-instances 1 \
-      --max-instances 10 \
-      --timeout 3600 \
-      --set-env-vars NODE_ENV=production
-
-    # Get server URL
-    SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-    echo "🔗 Server deployed at: $SERVER_URL"
-else
-    echo "⏭️  Skipping server build and deployment (already completed)"
-    # Get existing server URL
-    SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-    echo "🔗 Using existing server at: $SERVER_URL"
+# Connect repository to Cloud Build (if not already connected)
+echo "🔗 Connecting repository to Cloud Build..."
+if ! gcloud source repos describe tcg-marketplace &> /dev/null; then
+    echo "📁 Creating Cloud Source Repository..."
+    gcloud source repos create tcg-marketplace
 fi
 
-# Build and push client image (skip if resuming from client-deploy)
-if [ "$SKIP_CLIENT_BUILD" = "false" ]; then
-    echo "🐳 Building and pushing client image..."
-    cd client
-    gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest .
-    cd ..
+# Build server image from source (skip if resuming)
+if [ "$SKIP_SERVER" = "false" ]; then
+    echo "🐳 Building server image from source..."
+    gcloud builds submit \
+        --config=cloudbuild-server.yaml \
+        --substitutions=_SERVICE_NAME=$SERVER_SERVICE,_PROJECT_ID=$PROJECT_ID \
+        $REPO_URL
+else
+    echo "⏭️  Skipping server build (already completed)"
+fi
+
+# Build client image from source (skip if resuming from client-deploy)
+if [ "$SKIP_CLIENT" = "false" ]; then
+    echo "🐳 Building client image from source..."
+    gcloud builds submit \
+        --config=cloudbuild-client.yaml \
+        --substitutions=_SERVICE_NAME=$CLIENT_SERVICE,_PROJECT_ID=$PROJECT_ID \
+        $REPO_URL
 else
     echo "⏭️  Skipping client build (already completed)"
 fi
+
+# Deploy server to Cloud Run
+echo "☁️ Deploying server to Cloud Run..."
+gcloud run deploy $SERVER_SERVICE \
+  --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
+  --platform managed \
+  --region $REGION \
+  --allow-unauthenticated \
+  --port 8080 \
+  --memory 2Gi \
+  --cpu 2 \
+  --min-instances 1 \
+  --max-instances 10 \
+  --timeout 3600 \
+  --set-env-vars NODE_ENV=production
+
+# Get server URL
+SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+echo "🔗 Server deployed at: $SERVER_URL"
 
 # Deploy client to Cloud Run (skip if resuming from client-deploy)
 if [ "$SKIP_CLIENT_DEPLOY" = "false" ]; then
@@ -113,7 +124,7 @@ fi
 # Get client URL
 CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
 
-echo "✅ Deployment complete!"
+echo "✅ Build and deployment complete!"
 echo "🌍 Your application is live at: $CLIENT_URL"
 echo "🔗 API server: $SERVER_URL"
 echo "📊 Monitor your services:"
@@ -121,5 +132,5 @@ echo "   Server: https://console.cloud.google.com/run/detail/$REGION/$SERVER_SER
 echo "   Client: https://console.cloud.google.com/run/detail/$REGION/$CLIENT_SERVICE/metrics?project=$PROJECT_ID"
 echo ""
 echo "🔄 Resume options for next time:"
-echo "   ./deployment/deploy-gcp.sh client        # Resume from client build"
-echo "   ./deployment/deploy-gcp.sh client-deploy # Resume from client deployment"
+echo "   ./deployment/build-gcp.sh client        # Resume from client build"
+echo "   ./deployment/build-gcp.sh client-deploy # Resume from client deployment"

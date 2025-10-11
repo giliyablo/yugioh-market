@@ -61,7 +61,7 @@ module.exports = { db };
 
 // --- Initialize Express App ---
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 8080;
 
 // --- Middleware ---
 app.use(cors()); // Allows requests from your frontend
@@ -90,6 +90,11 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString(),
         project: 'fourth-arena-474414-h6'
     });
+});
+
+// --- Cloud Run Health Check ---
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
 });
 
 // --- Test Firestore Connection ---
