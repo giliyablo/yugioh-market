@@ -9,9 +9,10 @@ CLIENT_SERVICE="tcg-marketplace-client"
 
 # Configuration options
 SOURCE_TYPE=${1:-"local"}  # local, github, gcs
-GITHUB_REPO=${2:-"giliyablo/yugioh-market"}       # Format: owner/repo
-GITHUB_BRANCH=${3:-"main"} # Branch to build from
-GCS_BUCKET=${4:-"tcg-marketplace-source"}        # GCS bucket with source code
+BUILD_TARGET=${2:-"both"}  # server, client, both
+GITHUB_REPO=${3:-"giliyablo/yugioh-market"}       # Format: owner/repo
+GITHUB_BRANCH=${4:-"main"} # Branch to build from
+GCS_BUCKET=${5:-"tcg-marketplace-source"}        # GCS bucket with source code
 
 echo "🚀 Building TCG Marketplace images from $SOURCE_TYPE source..."
 
@@ -57,80 +58,164 @@ build_client() {
         $source_path
 }
 
+# Function to build based on target
+build_target() {
+    local source_path=$1
+    local target=$2
+    
+    case $target in
+        "server")
+            build_server $source_path
+            ;;
+        "client")
+            build_client $source_path
+            ;;
+        "both")
+            build_server $source_path
+            build_client $source_path
+            ;;
+        *)
+            echo "❌ Invalid build target: $target"
+            echo "Valid options: server, client, both"
+            exit 1
+            ;;
+    esac
+}
+
 # Function to deploy services
 deploy_services() {
-    echo "☁️ Deploying server to Cloud Run..."
-    gcloud run deploy $SERVER_SERVICE \
-      --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
-      --platform managed \
-      --region $REGION \
-      --allow-unauthenticated \
-      --port 8080 \
-      --memory 2Gi \
-      --cpu 2 \
-      --min-instances 1 \
-      --max-instances 10 \
-      --timeout 3600 \
-      --set-env-vars NODE_ENV=production
+    local target=$1
+    
+    case $target in
+        "server")
+            echo "☁️ Deploying server to Cloud Run..."
+            gcloud run deploy $SERVER_SERVICE \
+              --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 2Gi \
+              --cpu 2 \
+              --min-instances 1 \
+              --max-instances 10 \
+              --timeout 3600 \
+              --set-env-vars NODE_ENV=production
 
-    # Get server URL
-    SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-    echo "🔗 Server deployed at: $SERVER_URL"
+            # Get server URL
+            SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+            echo "🔗 Server deployed at: $SERVER_URL"
+            ;;
+        "client")
+            # Get existing server URL for client environment variable
+            SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)' 2>/dev/null || echo "")
+            if [ -z "$SERVER_URL" ]; then
+                echo "⚠️  Server not found. Client will be deployed without API URL."
+                echo "   Deploy server first or update VITE_API_URL manually."
+            else
+                echo "🔗 Using existing server: $SERVER_URL"
+            fi
+            
+            echo "☁️ Deploying client to Cloud Run..."
+            gcloud run deploy $CLIENT_SERVICE \
+              --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 1Gi \
+              --cpu 1 \
+              --min-instances 1 \
+              --max-instances 5 \
+              --timeout 3600 \
+              --set-env-vars VITE_API_URL=$SERVER_URL/api
 
-    echo "☁️ Deploying client to Cloud Run..."
-    gcloud run deploy $CLIENT_SERVICE \
-      --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
-      --platform managed \
-      --region $REGION \
-      --allow-unauthenticated \
-      --port 8080 \
-      --memory 1Gi \
-      --cpu 1 \
-      --min-instances 1 \
-      --max-instances 5 \
-      --timeout 3600 \
-      --set-env-vars VITE_API_URL=$SERVER_URL/api
+            # Get client URL
+            CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+            echo "🔗 Client deployed at: $CLIENT_URL"
+            ;;
+        "both")
+            echo "☁️ Deploying server to Cloud Run..."
+            gcloud run deploy $SERVER_SERVICE \
+              --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 2Gi \
+              --cpu 2 \
+              --min-instances 1 \
+              --max-instances 10 \
+              --timeout 3600 \
+              --set-env-vars NODE_ENV=production
 
-    # Get client URL
-    CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-    echo "🔗 Client deployed at: $CLIENT_URL"
+            # Get server URL
+            SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+            echo "🔗 Server deployed at: $SERVER_URL"
+
+            echo "☁️ Deploying client to Cloud Run..."
+            gcloud run deploy $CLIENT_SERVICE \
+              --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
+              --platform managed \
+              --region $REGION \
+              --allow-unauthenticated \
+              --port 8080 \
+              --memory 1Gi \
+              --cpu 1 \
+              --min-instances 1 \
+              --max-instances 5 \
+              --timeout 3600 \
+              --set-env-vars VITE_API_URL=$SERVER_URL/api
+
+            # Get client URL
+            CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+            echo "🔗 Client deployed at: $CLIENT_URL"
+            ;;
+    esac
 }
 
 # Main build logic based on source type
 case $SOURCE_TYPE in
     "local")
         echo "📁 Building from local source code..."
-        build_server .
-        build_client .
-        deploy_services
+        build_target . $BUILD_TARGET
+        deploy_services $BUILD_TARGET
         ;;
     
     "github")
         if [ -z "$GITHUB_REPO" ]; then
             echo "❌ GitHub repository not specified. Usage:"
-            echo "   ./deployment/build-from-source.sh github owner/repo [branch]"
+            echo "   ./deployment/build-from-source.sh github [target] owner/repo [branch]"
             exit 1
         fi
         
         echo "🐙 Building from GitHub repository: $GITHUB_REPO (branch: $GITHUB_BRANCH)"
-        GITHUB_URL="https://github.com/$GITHUB_REPO.git"
-        build_server $GITHUB_URL
-        build_client $GITHUB_URL
-        deploy_services
+        
+        # Create a temporary directory and clone the repo
+        TEMP_DIR=$(mktemp -d)
+        echo "📁 Cloning repository to temporary directory..."
+        git clone --branch $GITHUB_BRANCH --depth 1 https://github.com/$GITHUB_REPO.git $TEMP_DIR
+        
+        # Build based on target
+        build_target $TEMP_DIR $BUILD_TARGET
+        
+        # Clean up temporary directory
+        rm -rf $TEMP_DIR
+        
+        deploy_services $BUILD_TARGET
         ;;
     
     "gcs")
         if [ -z "$GCS_BUCKET" ]; then
             echo "❌ GCS bucket not specified. Usage:"
-            echo "   ./deployment/build-from-source.sh gcs bucket-name"
+            echo "   ./deployment/build-from-source.sh gcs [target] bucket-name"
             exit 1
         fi
         
         echo "☁️ Building from GCS bucket: $GCS_BUCKET"
         GCS_URL="gs://$GCS_BUCKET"
-        build_server $GCS_URL
-        build_client $GCS_URL
-        deploy_services
+        build_target $GCS_URL $BUILD_TARGET
+        deploy_services $BUILD_TARGET
         ;;
     
     *)
@@ -138,9 +223,9 @@ case $SOURCE_TYPE in
         echo "Valid options: local, github, gcs"
         echo ""
         echo "Usage examples:"
-        echo "  ./deployment/build-from-source.sh local"
-        echo "  ./deployment/build-from-source.sh github owner/repo main"
-        echo "  ./deployment/build-from-source.sh gcs my-source-bucket"
+        echo "  ./deployment/build-from-source.sh local [server|client|both]"
+        echo "  ./deployment/build-from-source.sh github [server|client|both] owner/repo [branch]"
+        echo "  ./deployment/build-from-source.sh gcs [server|client|both] bucket-name"
         exit 1
         ;;
 esac
