@@ -1,38 +1,57 @@
-# Stage 1: Build the React application
-# Use an official Node.js image as the builder environment.
-# 'alpine' is a lightweight version of Linux.
-FROM node:18-alpine AS build
+# Multi-stage build for production
+FROM node:18-alpine AS builder
 
-# Set the working directory inside the container.
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json to leverage Docker layer caching.
-# This step only re-runs if these files change.
+# Copy package files
 COPY package*.json ./
 
-# Install all project dependencies.
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Copy the rest of the application source code into the container.
+# Copy source code
 COPY . .
 
-# Build the application for production.
-# This creates a 'dist' folder with optimized static files.
+# Build the application
 RUN npm run build
 
-# Stage 2: Serve the application using Nginx
-# Use a lightweight Nginx image for the final production environment.
-FROM nginx:stable-alpine
+# Production stage with Nginx
+FROM nginx:alpine AS production
 
-# Copy the custom Nginx configuration file.
-# This config is necessary to correctly handle single-page application routing.
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create nginx user and set permissions
+RUN addgroup -g 1001 -S nginx && \
+    adduser -S nginx -u 1001 -G nginx
+
+# Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the built static files from the 'build' stage to the Nginx public directory.
-COPY --from=build /app/dist /usr/share/nginx/html
+# Copy built application from builder stage
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Expose port 80 to the outside world.
-EXPOSE 80
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid
 
-# The default Nginx command will start the web server.
+# Switch to non-root user
+USER nginx
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start nginx
 CMD ["nginx", "-g", "daemon off;"]

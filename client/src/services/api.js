@@ -2,7 +2,10 @@ import axios from 'axios';
 import { auth } from './firebase';
 
 // Set the base URL for your backend server
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// In production, this will be set by the deployment environment
+// In Docker, this will be the internal service name
+const API_URL = import.meta.env.VITE_API_URL || 
+  (import.meta.env.PROD ? 'http://server:5000/api' : 'http://localhost:5000/api');
 
 const api = axios.create({
     baseURL: API_URL,
