@@ -4,8 +4,8 @@
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "site": "local-tcg-market-chat-israel",
-    "public": "client/public",
+    "site": "local-tcg-market-place",
+    "public": "client/dist",
     "ignore": [
       "firebase.json",
       "**/.*",

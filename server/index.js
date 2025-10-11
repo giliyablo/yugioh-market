@@ -58,6 +58,9 @@ app.use(cors()); // Allows requests from your frontend
 app.use(express.json()); // Parses incoming JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parses URL-encoded bodies
 
+// Serve static files from the built client
+app.use(express.static('public'));
+
 // --- Database Connection ---
 // MongoDB connection removed - now using Firestore
 
@@ -67,7 +70,16 @@ app.use('/api/posts', require('./routes/posts'));
 
 // --- Root Route ---
 app.get('/', (req, res) => {
-    res.send('Yu-Gi-Oh! Marketplace API is running!');
+    res.sendFile('index.html', { root: 'public' });
+});
+
+// --- API Health Check ---
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'healthy', 
+        timestamp: new Date().toISOString(),
+        project: 'fourth-arena-474414-h6'
+    });
 });
 
 // --- Test Firestore Connection ---
