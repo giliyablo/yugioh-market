@@ -19,12 +19,12 @@ spec:
       containers:
       - image: gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest
         ports:
-        - containerPort: 5000
+        - containerPort: 80
         env:
         - name: NODE_ENV
           value: "production"
         - name: PORT
-          value: "5000"
+          value: "80"
         resources:
           limits:
             cpu: "2"
@@ -35,12 +35,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /test-firestore
-            port: 5000
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /test-firestore
-            port: 5000
+            port: 80
           initialDelaySeconds: 5
           periodSeconds: 5

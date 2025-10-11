@@ -24,7 +24,7 @@ if [ ! -f .env ]; then
 FIREBASE_SERVICE_ACCOUNT_JSON=
 
 # API Configuration
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=http://localhost:80/api
 EOF
     echo "⚠️  Please add your Firebase service account JSON to the .env file"
 fi
@@ -41,7 +41,7 @@ sleep 10
 echo "🔍 Checking service health..."
 
 # Check server health
-if curl -f http://localhost:5000/api/health > /dev/null 2>&1; then
+if curl -f http://localhost:80/api/health > /dev/null 2>&1; then
     echo "✅ Server is healthy"
 else
     echo "❌ Server is not responding"
@@ -60,7 +60,7 @@ fi
 
 echo "✅ Local development environment is ready!"
 echo "🌍 Client: http://localhost:80"
-echo "🔗 API: http://localhost:5000"
+echo "🔗 API: http://localhost:80"
 echo ""
 echo "📊 View logs:"
 echo "   docker-compose logs -f"

@@ -1,5 +1,5 @@
-# Multi-stage build for production
-FROM node:20-alpine AS builder
+# Simple single-stage build
+FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
@@ -7,7 +7,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (including dev dependencies for build)
+# Install dependencies
 RUN npm ci && npm cache clean --force
 
 # Copy source code
@@ -16,47 +16,11 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Production stage with Nginx
-FROM nginx:alpine AS production
-
-# Install dumb-init and gettext (for envsubst)
-RUN apk add --no-cache dumb-init gettext
-
-# Copy nginx configuration template
-COPY nginx-dynamic.conf /etc/nginx/conf.d/default.conf.template
-
-# Create startup script
-RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'PORT=${PORT:-80}' >> /start.sh && \
-    echo 'echo "Starting nginx on port $PORT"' >> /start.sh && \
-    echo 'echo "Generating nginx configuration..."' >> /start.sh && \
-    echo 'envsubst '"'"'$PORT'"'"' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf' >> /start.sh && \
-    echo 'echo "Generated nginx config for port $PORT"' >> /start.sh && \
-    echo 'echo "Nginx configuration:"' >> /start.sh && \
-    echo 'cat /etc/nginx/conf.d/default.conf' >> /start.sh && \
-    echo 'echo "Testing nginx configuration..."' >> /start.sh && \
-    echo 'nginx -t' >> /start.sh && \
-    echo 'echo "Starting nginx..."' >> /start.sh && \
-    echo 'exec nginx -g "daemon off;"' >> /start.sh && \
-    chmod +x /start.sh
-
-# Copy built application from builder stage
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Set proper permissions
-RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d && \
-    chown nginx:nginx /etc/nginx/conf.d/default.conf.template && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
+# Install serve to serve static files
+RUN npm install -g serve
 
 # Expose port
-EXPOSE 80
+EXPOSE 3000
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
-
-# Start nginx with dynamic port
-CMD ["/start.sh"]
+# Serve the built application
+CMD ["serve", "-s", "dist", "-l", "3000"]

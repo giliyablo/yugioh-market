@@ -52,7 +52,7 @@ This guide will help you deploy your TCG Marketplace to Google Cloud Platform fo
      --platform managed \
      --region us-central1 \
      --allow-unauthenticated \
-     --port 5000 \
+     --port 80 \
      --memory 2Gi \
      --cpu 2
    ```
@@ -131,7 +131,7 @@ gcloud run services update tcg-marketplace \
 Set these in Cloud Run or via Terraform:
 
 - `NODE_ENV=production`
-- `PORT=5000`
+- `PORT=80`
 - `FIREBASE_SERVICE_ACCOUNT_JSON` (for server-side Firestore access)
 
 ### Custom Domain (Optional)

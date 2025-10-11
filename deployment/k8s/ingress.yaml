@@ -18,7 +18,7 @@ spec:
           service:
             name: yugioh-market-server
             port:
-              number: 5000
+              number: 80
       - path: /
         pathType: Prefix
         backend:

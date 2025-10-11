@@ -19,7 +19,7 @@ spec:
       - name: server
         image: yugioh-market-server:latest
         ports:
-        - containerPort: 5000
+        - containerPort: 80
         env:
         - name: NODE_ENV
           valueFrom:
@@ -41,12 +41,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /api/health
-            port: 5000
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /api/health
-            port: 5000
+            port: 80
           initialDelaySeconds: 5
           periodSeconds: 5

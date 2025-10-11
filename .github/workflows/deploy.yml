@@ -108,12 +108,12 @@ jobs:
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
-            --port 5000 \
+            --port 80 \
             --memory 2Gi \
             --cpu 2 \
             --min-instances 1 \
             --max-instances 10 \
-            --set-env-vars NODE_ENV=production,PORT=5000
+            --set-env-vars NODE_ENV=production,PORT=80
 
       - name: Get server URL
         id: server-url

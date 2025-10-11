@@ -2,7 +2,7 @@ const http = require('http');
 
 const options = {
   hostname: 'localhost',
-  port: process.env.PORT || 5000,
+  port: process.env.PORT || 80,
   path: '/test-firestore',
   method: 'GET',
   timeout: 2000

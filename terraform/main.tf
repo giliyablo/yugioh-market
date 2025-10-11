@@ -93,7 +93,7 @@ resource "google_cloud_run_v2_service" "tcg_marketplace" {
       image = "gcr.io/${var.project_id}/tcg-marketplace:latest"
       
       ports {
-        container_port = 5000
+        container_port = 80
       }
 
       env {
@@ -103,7 +103,7 @@ resource "google_cloud_run_v2_service" "tcg_marketplace" {
 
       env {
         name  = "PORT"
-        value = "5000"
+        value = "80"
       }
 
       resources {
@@ -118,7 +118,7 @@ resource "google_cloud_run_v2_service" "tcg_marketplace" {
       startup_probe {
         http_get {
           path = "/test-firestore"
-          port = 5000
+          port = 80
         }
         initial_delay_seconds = 10
         timeout_seconds = 3
@@ -129,7 +129,7 @@ resource "google_cloud_run_v2_service" "tcg_marketplace" {
       liveness_probe {
         http_get {
           path = "/test-firestore"
-          port = 5000
+          port = 80
         }
         initial_delay_seconds = 30
         timeout_seconds = 3

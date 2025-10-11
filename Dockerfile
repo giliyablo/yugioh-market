@@ -29,7 +29,7 @@ RUN adduser -S nodejs -u 1001
 USER nodejs
 
 # Expose port
-EXPOSE 5000
+EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
