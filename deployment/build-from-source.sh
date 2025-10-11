@@ -10,7 +10,7 @@ CLIENT_SERVICE="tcg-marketplace-client"
 # Configuration options
 SOURCE_TYPE=${1:-"local"}  # local, github, gcs
 BUILD_TARGET=${2:-"both"}  # server, client, both
-GITHUB_REPO=${3:-"giliyablo/yugioh-market"}       # Format: owner/repo
+GITHUB_REPO=${3:-"giliyablo/tcg-market"}       # Format: owner/repo
 GITHUB_BRANCH=${4:-"main"} # Branch to build from
 GCS_BUCKET=${5:-"tcg-marketplace-source"}        # GCS bucket with source code
 

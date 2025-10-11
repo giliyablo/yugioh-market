@@ -6,7 +6,7 @@ PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
-GITHUB_REPO="giliyablo/yugioh-market"
+GITHUB_REPO="giliyablo/tcg-market"
 GITHUB_BRANCH=${1:-"main"}
 
 echo "🚀 Building TCG Marketplace images directly from GitHub..."

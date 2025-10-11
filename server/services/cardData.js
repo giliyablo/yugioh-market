@@ -13,7 +13,7 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
         page = await browser.newPage();
 
         const formattedCardName = encodeURIComponent(String(cardName).trim());
-        const searchUrl = `https://www.tcgplayer.com/search/yugioh/product?productLineName=yugioh&q=${formattedCardName}&view=grid`;
+        const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
         const priceSelector = 'span.product-card__market-price--value';

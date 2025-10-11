@@ -2,7 +2,7 @@
 
 set -e
 
-echo "🚀 Deploying Yugioh Market to Kubernetes..."
+echo "🚀 Deploying tcg Market to Kubernetes..."
 
 # Check if kubectl is available
 if ! command -v kubectl &> /dev/null; then
@@ -18,8 +18,8 @@ fi
 
 # Build Docker images
 echo "🐳 Building Docker images..."
-docker build -t yugioh-market-server:latest -f server/Dockerfile server/
-docker build -t yugioh-market-client:latest -f client/Dockerfile client/
+docker build -t tcg-market-server:latest -f server/Dockerfile server/
+docker build -t tcg-market-client:latest -f client/Dockerfile client/
 
 # Apply Kubernetes manifests
 echo "📦 Applying Kubernetes manifests..."
@@ -43,25 +43,25 @@ kubectl apply -f deployment/k8s/ingress.yaml
 
 # Wait for deployments to be ready
 echo "⏳ Waiting for deployments to be ready..."
-kubectl wait --for=condition=available --timeout=300s deployment/yugioh-market-server -n yugioh-market
-kubectl wait --for=condition=available --timeout=300s deployment/yugioh-market-client -n yugioh-market
+kubectl wait --for=condition=available --timeout=300s deployment/tcg-market-server -n tcg-market
+kubectl wait --for=condition=available --timeout=300s deployment/tcg-market-client -n tcg-market
 
 # Get service information
 echo "✅ Deployment completed!"
 echo ""
 echo "📊 Service Status:"
-kubectl get pods -n yugioh-market
-kubectl get services -n yugioh-market
-kubectl get ingress -n yugioh-market
+kubectl get pods -n tcg-market
+kubectl get services -n tcg-market
+kubectl get ingress -n tcg-market
 
 echo ""
 echo "🌍 Access your application:"
-echo "   Local: http://yugioh-market.local (add to /etc/hosts)"
-echo "   Or use port-forward: kubectl port-forward -n yugioh-market svc/yugioh-market-client 80:80"
+echo "   Local: http://tcg-market.local (add to /etc/hosts)"
+echo "   Or use port-forward: kubectl port-forward -n tcg-market svc/tcg-market-client 80:80"
 echo ""
 echo "📊 View logs:"
-echo "   kubectl logs -f deployment/yugioh-market-server -n yugioh-market"
-echo "   kubectl logs -f deployment/yugioh-market-client -n yugioh-market"
+echo "   kubectl logs -f deployment/tcg-market-server -n tcg-market"
+echo "   kubectl logs -f deployment/tcg-market-client -n tcg-market"
 echo ""
 echo "🛑 Delete deployment:"
-echo "   kubectl delete namespace yugioh-market"
+echo "   kubectl delete namespace tcg-market"

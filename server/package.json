@@ -1,5 +1,5 @@
 {
-  "name": "yugioh-market-server",
+  "name": "tcg-market-server",
   "version": "1.0.0",
   "description": "Backend server for the Yu-Gi-Oh! marketplace app.",
   "main": "index.js",
@@ -8,7 +8,7 @@
     "dev": "nodemon index.js"
   },
   "keywords": [
-    "yugioh",
+    "tcg",
     "express",
     "firestore",
     "nodejs"

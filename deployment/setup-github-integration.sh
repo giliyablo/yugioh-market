@@ -4,7 +4,7 @@ set -e
 
 PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
-GITHUB_REPO="giliyablo/yugioh-market"  # Update this with your actual GitHub repo
+GITHUB_REPO="giliyablo/tcg-market"  # Update this with your actual GitHub repo
 GITHUB_TOKEN="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"  # You'll need to provide this
 
 echo "🔗 Setting up GitHub integration with Google Cloud Build..."

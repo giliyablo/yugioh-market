@@ -6,7 +6,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: yugioh-market-server
+    container_name: tcg-market-server
     ports:
       - "80:80"
     environment:
@@ -17,7 +17,7 @@ services:
       - ./server:/app
       - /app/node_modules
     networks:
-      - yugioh-network
+      - tcg-network
     healthcheck:
       test: ["CMD", "node", "healthcheck.js"]
       interval: 30s
@@ -30,16 +30,16 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
-    container_name: yugioh-market-client
+    container_name: tcg-market-client
     ports:
-      - "80:80"
+      - "3000:3000"
     environment:
       - VITE_API_URL=http://server:80/api
     depends_on:
       server:
         condition: service_healthy
     networks:
-      - yugioh-network
+      - tcg-network
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
@@ -48,7 +48,7 @@ services:
       start_period: 40s
 
 networks:
-  yugioh-network:
+  tcg-network:
     driver: bridge
 
 volumes:

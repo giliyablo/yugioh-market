@@ -1,28 +1,28 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: yugioh-market-ingress
-  namespace: yugioh-market
+  name: tcg-market-ingress
+  namespace: tcg-market
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
   ingressClassName: nginx
   rules:
-  - host: yugioh-market.local
+  - host: tcg-market.local
     http:
       paths:
       - path: /api
         pathType: Prefix
         backend:
           service:
-            name: yugioh-market-server
+            name: tcg-market-server
             port:
               number: 80
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: yugioh-market-client
+            name: tcg-market-client
             port:
               number: 80

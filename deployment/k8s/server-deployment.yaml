@@ -1,35 +1,35 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: yugioh-market-server
-  namespace: yugioh-market
+  name: tcg-market-server
+  namespace: tcg-market
   labels:
-    app: yugioh-market-server
+    app: tcg-market-server
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: yugioh-market-server
+      app: tcg-market-server
   template:
     metadata:
       labels:
-        app: yugioh-market-server
+        app: tcg-market-server
     spec:
       containers:
       - name: server
-        image: yugioh-market-server:latest
+        image: tcg-market-server:latest
         ports:
         - containerPort: 80
         env:
         - name: NODE_ENV
           valueFrom:
             configMapKeyRef:
-              name: yugioh-market-config
+              name: tcg-market-config
               key: NODE_ENV
         - name: PORT
           valueFrom:
             configMapKeyRef:
-              name: yugioh-market-config
+              name: tcg-market-config
               key: PORT
         resources:
           requests:

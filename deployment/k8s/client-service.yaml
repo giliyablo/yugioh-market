@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: yugioh-market-client
-  namespace: yugioh-market
+  name: tcg-market-client
+  namespace: tcg-market
   labels:
-    app: yugioh-market-client
+    app: tcg-market-client
 spec:
   selector:
-    app: yugioh-market-client
+    app: tcg-market-client
   ports:
   - port: 80
     targetPort: 80

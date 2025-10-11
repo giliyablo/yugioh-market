@@ -5,7 +5,7 @@ A full-stack marketplace application for Yu-Gi-Oh! players to buy and sell cards
 ## 🏗️ Project Structure
 
 ```
-yugioh-market/
+tcg-market/
 ├── client/                 # React frontend (Vite + Tailwind)
 │   ├── src/
 │   │   ├── components/     # React components

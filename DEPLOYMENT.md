@@ -25,10 +25,10 @@ The application consists of two main services:
 3. **Individual services**:
    ```bash
    # Build server
-   docker build -f server/Dockerfile -t yugioh-server ./server
+   docker build -f server/Dockerfile -t tcg-server ./server
    
    # Build client
-   docker build -f client/Dockerfile -t yugioh-client ./client
+   docker build -f client/Dockerfile -t tcg-client ./client
    ```
 
 ### Production Images

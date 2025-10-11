@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: yugioh-market
+  name: tcg-market
   labels:
-    name: yugioh-market
+    name: tcg-market
     app: tcg-marketplace
