@@ -1,6 +1,6 @@
 output "cloud_run_service_url" {
   description = "URL of the Cloud Run service"
-  value       = google_cloud_run_v2_service.yugioh_marketplace.uri
+  value       = google_cloud_run_v2_service.tcg_marketplace.uri
 }
 
 output "load_balancer_ip" {

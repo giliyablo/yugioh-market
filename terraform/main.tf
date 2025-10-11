@@ -77,20 +77,20 @@ resource "google_project_iam_member" "cloud_run_storage" {
 
 # Service account for Cloud Run
 resource "google_service_account" "cloud_run" {
-  account_id   = "yugioh-marketplace-run"
-  display_name = "Yu-Gi-Oh Marketplace Cloud Run Service Account"
+  account_id   = "TCG-marketplace-run"
+  display_name = "TCG Marketplace Cloud Run Service Account"
 }
 
 # Cloud Run service
-resource "google_cloud_run_v2_service" "yugioh_marketplace" {
-  name     = "yugioh-marketplace"
+resource "google_cloud_run_v2_service" "tcg_marketplace" {
+  name     = "TCG-marketplace"
   location = var.region
 
   template {
     service_account = google_service_account.cloud_run.email
     
     containers {
-      image = "gcr.io/${var.project_id}/yugioh-marketplace:latest"
+      image = "gcr.io/${var.project_id}/tcg-marketplace:latest"
       
       ports {
         container_port = 5000
@@ -149,24 +149,24 @@ resource "google_cloud_run_v2_service" "yugioh_marketplace" {
 
 # Allow unauthenticated access to Cloud Run
 resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  location = google_cloud_run_v2_service.yugioh_marketplace.location
-  name     = google_cloud_run_v2_service.yugioh_marketplace.name
+  location = google_cloud_run_v2_service.tcg_marketplace.location
+  name     = google_cloud_run_v2_service.tcg_marketplace.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 # Load Balancer
 resource "google_compute_global_address" "default" {
-  name = "yugioh-marketplace-ip"
+  name = "tcg-marketplace-ip"
 }
 
 resource "google_compute_url_map" "default" {
-  name            = "yugioh-marketplace-lb"
+  name            = "tcg-marketplace-lb"
   default_service = google_compute_backend_service.default.id
 }
 
 resource "google_compute_backend_service" "default" {
-  name        = "yugioh-marketplace-backend"
+  name        = "tcg-marketplace-backend"
   protocol    = "HTTP"
   port_name   = "http"
   timeout_sec = 30
@@ -177,30 +177,30 @@ resource "google_compute_backend_service" "default" {
 }
 
 resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
-  name                  = "yugioh-marketplace-neg"
+  name                  = "tcg-marketplace-neg"
   network_endpoint_type = "SERVERLESS"
   region                = var.region
 
   cloud_run {
-    service = google_cloud_run_v2_service.yugioh_marketplace.name
+    service = google_cloud_run_v2_service.tcg_marketplace.name
   }
 }
 
 resource "google_compute_global_forwarding_rule" "default" {
-  name       = "yugioh-marketplace-forwarding-rule"
+  name       = "tcg-marketplace-forwarding-rule"
   target     = google_compute_target_http_proxy.default.id
   port_range = "80"
   ip_address = google_compute_global_address.default.id
 }
 
 resource "google_compute_target_http_proxy" "default" {
-  name    = "yugioh-marketplace-proxy"
+  name    = "tcg-marketplace-proxy"
   url_map = google_compute_url_map.default.id
 }
 
 # Outputs
 output "cloud_run_url" {
-  value = google_cloud_run_v2_service.yugioh_marketplace.uri
+  value = google_cloud_run_v2_service.tcg_marketplace.uri
 }
 
 output "load_balancer_ip" {

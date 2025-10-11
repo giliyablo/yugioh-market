@@ -8,7 +8,7 @@ on:
 
 env:
   PROJECT_ID: fourth-arena-474414-h6
-  SERVICE_NAME: yugioh-marketplace
+  SERVICE_NAME: tcg-marketplace
   REGION: us-central1
 
 jobs:

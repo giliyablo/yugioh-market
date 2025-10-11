@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Deploying Yu-Gi-Oh Marketplace to Firebase..."
+echo "🚀 Deploying TCG Marketplace to Firebase..."
 
 # Build the client
 echo "📦 Building client application..."

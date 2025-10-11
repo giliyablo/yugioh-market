@@ -4,9 +4,9 @@ set -e
 
 PROJECT_ID="fourth-arena-474414-h6"
 REGION="us-central1"
-SERVICE_NAME="yugioh-marketplace"
+SERVICE_NAME="tcg-marketplace"
 
-echo "🚀 Deploying Yu-Gi-Oh Marketplace to Google Cloud Platform..."
+echo "🚀 Deploying TCG Marketplace to Google Cloud Platform..."
 
 # Check if gcloud is installed
 if ! command -v gcloud &> /dev/null; then

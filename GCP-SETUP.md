@@ -1,6 +1,6 @@
 # Google Cloud Platform Setup Guide
 
-This guide will help you deploy your Yu-Gi-Oh Marketplace to Google Cloud Platform for a dynamic, scalable hosting solution.
+This guide will help you deploy your TCG Marketplace to Google Cloud Platform for a dynamic, scalable hosting solution.
 
 ## 🚀 Quick Start
 
@@ -44,11 +44,11 @@ This guide will help you deploy your Yu-Gi-Oh Marketplace to Google Cloud Platfo
 2. **Build and Deploy**
    ```bash
    # Build Docker image
-   gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/yugioh-marketplace:latest .
+   gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest .
    
    # Deploy to Cloud Run
-   gcloud run deploy yugioh-marketplace \
-     --image gcr.io/fourth-arena-474414-h6/yugioh-marketplace:latest \
+   gcloud run deploy tcg-marketplace \
+     --image gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest \
      --platform managed \
      --region us-central1 \
      --allow-unauthenticated \
@@ -112,13 +112,13 @@ For production deployments with load balancers and advanced configuration:
 
 ```bash
 # View logs
-gcloud run services logs read yugioh-marketplace --region us-central1
+gcloud run services logs read tcg-marketplace --region us-central1
 
 # Update service
-gcloud run services update yugioh-marketplace --region us-central1
+gcloud run services update tcg-marketplace --region us-central1
 
 # Scale service
-gcloud run services update yugioh-marketplace \
+gcloud run services update tcg-marketplace \
   --min-instances 2 \
   --max-instances 20 \
   --region us-central1
@@ -138,7 +138,7 @@ Set these in Cloud Run or via Terraform:
 
 1. **Reserve static IP**
    ```bash
-   gcloud compute addresses create yugioh-marketplace-ip --global
+   gcloud compute addresses create tcg-marketplace-ip --global
    ```
 
 2. **Configure DNS**
@@ -171,7 +171,7 @@ Set these in Cloud Run or via Terraform:
 2. **Service Won't Start**
    ```bash
    # Check service logs
-   gcloud run services logs read yugioh-marketplace --region us-central1
+   gcloud run services logs read tcg-marketplace --region us-central1
    ```
 
 3. **Permission Errors**
@@ -193,7 +193,7 @@ Set these in Cloud Run or via Terraform:
 
 ### Manual Scaling
 ```bash
-gcloud run services update yugioh-marketplace \
+gcloud run services update tcg-marketplace \
   --min-instances 5 \
   --max-instances 100 \
   --concurrency 1000 \

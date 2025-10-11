@@ -3,24 +3,24 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build', 
-      '-t', 'gcr.io/$PROJECT_ID/yugioh-marketplace:$COMMIT_SHA',
-      '-t', 'gcr.io/$PROJECT_ID/yugioh-marketplace:latest',
+      '-t', 'gcr.io/$PROJECT_ID/tcg-marketplace:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/tcg-marketplace:latest',
       '.'
     ]
 
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/yugioh-marketplace:$COMMIT_SHA']
+    args: ['push', 'gcr.io/$PROJECT_ID/tcg-marketplace:$COMMIT_SHA']
 
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/yugioh-marketplace:latest']
+    args: ['push', 'gcr.io/$PROJECT_ID/tcg-marketplace:latest']
 
   # Deploy container image to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args: [
-      'run', 'deploy', 'yugioh-marketplace',
-      '--image', 'gcr.io/$PROJECT_ID/yugioh-marketplace:$COMMIT_SHA',
+      'run', 'deploy', 'tcg-marketplace',
+      '--image', 'gcr.io/$PROJECT_ID/tcg-marketplace:$COMMIT_SHA',
       '--region', 'us-central1',
       '--platform', 'managed',
       '--allow-unauthenticated',
@@ -33,5 +33,5 @@ steps:
     ]
 
 images:
-  - 'gcr.io/$PROJECT_ID/yugioh-marketplace:$COMMIT_SHA'
-  - 'gcr.io/$PROJECT_ID/yugioh-marketplace:latest'
+  - 'gcr.io/$PROJECT_ID/tcg-marketplace:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/tcg-marketplace:latest'
