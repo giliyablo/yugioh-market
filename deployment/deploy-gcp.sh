@@ -63,7 +63,7 @@ if [ "$SKIP_SERVER" = "false" ]; then
       --platform managed \
       --region $REGION \
       --allow-unauthenticated \
-      --port 8080 \
+      --port 80 \
       --memory 2Gi \
       --cpu 2 \
       --min-instances 1 \
@@ -99,7 +99,7 @@ if [ "$SKIP_CLIENT_DEPLOY" = "false" ]; then
       --platform managed \
       --region $REGION \
       --allow-unauthenticated \
-      --port 8080 \
+      --port 80 \
       --memory 1Gi \
       --cpu 1 \
       --min-instances 1 \

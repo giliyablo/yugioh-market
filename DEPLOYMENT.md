@@ -174,7 +174,7 @@ VITE_API_URL=http://localhost:5000/api
    ```bash
    # Test API connectivity
    curl http://localhost:5000/api/health
-   curl http://localhost:8080/health
+   curl http://localhost:80/health
    ```
 
 3. **Firebase Authentication**:

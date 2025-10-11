@@ -16,15 +16,15 @@ echo "✅ Build successful"
 
 # Test the container
 echo "🔍 Testing container..."
-docker run --rm -d --name test-client-fixed -p 8080:8080 -e PORT=8080 test-client-fixed
+docker run --rm -d --name test-client-fixed -p 80:80 -e PORT=80 test-client-fixed
 sleep 5
 echo "🔍 Container status:"
 docker ps -a | grep test-client-fixed
 echo "🔍 Container logs:"
 docker logs test-client-fixed
 
-if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-    echo "✅ Client works on port 8080"
+if curl -f http://localhost:80/health > /dev/null 2>&1; then
+    echo "✅ Client works on port 80"
     docker stop test-client-fixed
     echo "🚀 Deploying to Cloud Run..."
     cd ..
@@ -39,7 +39,7 @@ if curl -f http://localhost:8080/health > /dev/null 2>&1; then
       --platform managed \
       --region me-west1 \
       --allow-unauthenticated \
-      --port 8080 \
+      --port 80 \
       --memory 1Gi \
       --cpu 1 \
       --min-instances 1 \

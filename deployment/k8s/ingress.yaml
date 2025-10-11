@@ -25,4 +25,4 @@ spec:
           service:
             name: yugioh-market-client
             port:
-              number: 8080
+              number: 80

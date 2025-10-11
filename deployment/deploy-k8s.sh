@@ -57,7 +57,7 @@ kubectl get ingress -n yugioh-market
 echo ""
 echo "🌍 Access your application:"
 echo "   Local: http://yugioh-market.local (add to /etc/hosts)"
-echo "   Or use port-forward: kubectl port-forward -n yugioh-market svc/yugioh-market-client 8080:8080"
+echo "   Or use port-forward: kubectl port-forward -n yugioh-market svc/yugioh-market-client 80:80"
 echo ""
 echo "📊 View logs:"
 echo "   kubectl logs -f deployment/yugioh-market-server -n yugioh-market"

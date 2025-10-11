@@ -9,7 +9,7 @@ docker build -t debug-client .
 
 # Test with verbose output
 echo "🔍 Testing container startup..."
-docker run --rm -it --name debug-client -p 8080:8080 -e PORT=8080 debug-client /bin/sh -c "
+docker run --rm -it --name debug-client -p 80:80 -e PORT=80 debug-client /bin/sh -c "
 echo 'Container started'
 echo 'Environment:'
 env | grep PORT

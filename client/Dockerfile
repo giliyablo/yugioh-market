@@ -27,7 +27,7 @@ COPY nginx-dynamic.conf /etc/nginx/conf.d/default.conf.template
 
 # Create startup script
 RUN echo '#!/bin/sh' > /start.sh && \
-    echo 'PORT=${PORT:-8080}' >> /start.sh && \
+    echo 'PORT=${PORT:-80}' >> /start.sh && \
     echo 'echo "Starting nginx on port $PORT"' >> /start.sh && \
     echo 'echo "Generating nginx configuration..."' >> /start.sh && \
     echo 'envsubst '"'"'$PORT'"'"' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf' >> /start.sh && \
@@ -53,7 +53,7 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
     chown -R nginx:nginx /var/run/nginx.pid
 
 # Expose port
-EXPOSE 8080
+EXPOSE 80
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]

@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: yugioh-market-client
     ports:
-      - "8080:8080"
+      - "80:80"
     environment:
       - VITE_API_URL=http://server:5000/api
     depends_on:
@@ -41,7 +41,7 @@ services:
     networks:
       - yugioh-network
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
       interval: 30s
       timeout: 10s
       retries: 3

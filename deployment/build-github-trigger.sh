@@ -94,7 +94,7 @@ gcloud run deploy $SERVER_SERVICE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 8080 \
+  --port 80 \
   --memory 2Gi \
   --cpu 2 \
   --min-instances 1 \
@@ -112,7 +112,7 @@ gcloud run deploy $CLIENT_SERVICE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 8080 \
+  --port 80 \
   --memory 1Gi \
   --cpu 1 \
   --min-instances 1 \

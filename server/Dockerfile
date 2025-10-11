@@ -17,7 +17,7 @@ RUN npm ci && npm cache clean --force
 COPY . .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 80
 
 # Health check (commented out for now)
 # HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

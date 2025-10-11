@@ -19,7 +19,7 @@ spec:
       - name: client
         image: yugioh-market-client:latest
         ports:
-        - containerPort: 8080
+        - containerPort: 80
         env:
         - name: VITE_API_URL
           valueFrom:
@@ -36,12 +36,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 8080
+            port: 80
           initialDelaySeconds: 5
           periodSeconds: 5

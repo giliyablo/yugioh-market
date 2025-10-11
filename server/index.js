@@ -61,7 +61,7 @@ module.exports = { db };
 
 // --- Initialize Express App ---
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 80;
 
 // --- Middleware ---
 app.use(cors()); // Allows requests from your frontend

@@ -27,17 +27,17 @@ echo "✅ Local build successful"
 
 # Test with different ports
 echo "🔍 Testing port configuration..."
-docker run --rm -d --name test-client -p 8080:8080 -e PORT=8080 test-client
+docker run --rm -d --name test-client -p 80:80 -e PORT=80 test-client
 sleep 5
 echo "🔍 Checking container status..."
 docker ps -a | grep test-client
 echo "🔍 Checking logs..."
 docker logs test-client
-if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-    echo "✅ Client works on port 8080"
+if curl -f http://localhost:80/health > /dev/null 2>&1; then
+    echo "✅ Client works on port 80"
     docker stop test-client
 else
-    echo "❌ Client failed on port 8080"
+    echo "❌ Client failed on port 80"
     docker stop test-client
 fi
 
@@ -56,7 +56,7 @@ gcloud run deploy $CLIENT_SERVICE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 8080 \
+  --port 80 \
   --memory 1Gi \
   --cpu 1 \
   --min-instances 1 \

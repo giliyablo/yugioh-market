@@ -7,15 +7,15 @@ echo "🐳 Building client image..."
 docker build -t test-client ./client
 
 # Test with default port
-echo "🔍 Testing with default port (8080)..."
-docker run --rm -d --name test-client-8080 -p 8080:8080 test-client
+echo "🔍 Testing with default port (80)..."
+docker run --rm -d --name test-client-80 -p 80:80 test-client
 sleep 5
-if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-    echo "✅ Client works on port 8080"
+if curl -f http://localhost:80/health > /dev/null 2>&1; then
+    echo "✅ Client works on port 80"
 else
-    echo "❌ Client failed on port 8080"
+    echo "❌ Client failed on port 80"
 fi
-docker stop test-client-8080
+docker stop test-client-80
 
 # Test with custom port
 echo "🔍 Testing with custom port (3000)..."
