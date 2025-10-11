@@ -6,13 +6,39 @@ const admin = require('firebase-admin');
 // --- Initialize Firebase Admin SDK ---
 // This allows the server to verify user tokens and access Firestore
 try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-    console.log("Firebase Admin SDK initialized successfully.");
+    // Check if Firebase Admin SDK is already initialized
+    if (admin.apps.length === 0) {
+        // Try to use service account from environment variable first
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+            console.log("Using service account from environment variable...");
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+            admin.initializeApp({
+                credential: admin.credential.cert(serviceAccount),
+                projectId: 'fourth-arena-474414-h6'
+            });
+            console.log("Firebase Admin SDK initialized successfully for project: fourth-arena-474414-h6");
+        } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+            console.log("Using Application Default Credentials from GOOGLE_APPLICATION_CREDENTIALS...");
+            admin.initializeApp({
+                projectId: 'fourth-arena-474414-h6'
+            });
+            console.log("Firebase Admin SDK initialized with Application Default Credentials for project: fourth-arena-474414-h6");
+        } else {
+            console.error("❌ No authentication credentials found!");
+            console.error("Please set either:");
+            console.error("1. FIREBASE_SERVICE_ACCOUNT_JSON environment variable with your service account JSON");
+            console.error("2. GOOGLE_APPLICATION_CREDENTIALS environment variable pointing to your service account file");
+            console.error("3. Run 'gcloud auth application-default login' to set up Application Default Credentials");
+            process.exit(1);
+        }
+    } else {
+        console.log("Firebase Admin SDK already initialized");
+    }
 } catch (error) {
-    console.error("Error initializing Firebase Admin SDK:", error);
+    console.error("❌ Error initializing Firebase Admin SDK:", error.message);
+    if (error.message.includes('JSON')) {
+        console.error("❌ Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON. Please check your environment variable.");
+    }
     process.exit(1);
 }
 
@@ -42,6 +68,29 @@ app.use('/api/posts', require('./routes/posts'));
 // --- Root Route ---
 app.get('/', (req, res) => {
     res.send('Yu-Gi-Oh! Marketplace API is running!');
+});
+
+// --- Test Firestore Connection ---
+app.get('/test-firestore', async (req, res) => {
+    try {
+        // Test Firestore connection by trying to read from a collection
+        const testCollection = db.collection('_test');
+        const snapshot = await testCollection.limit(1).get();
+        res.json({ 
+            status: 'success', 
+            message: 'Firestore connection successful',
+            projectId: 'fourth-arena-474414-h6',
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Firestore test failed:', error);
+        res.status(500).json({ 
+            status: 'error', 
+            message: 'Firestore connection failed',
+            error: error.message,
+            code: error.code
+        });
+    }
 });
 
 // --- Start Server ---

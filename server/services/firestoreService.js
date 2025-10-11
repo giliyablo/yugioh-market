@@ -1,6 +1,6 @@
 const admin = require('firebase-admin');
 
-// Get Firestore instance
+// Get Firestore instance for the correct project
 const db = admin.firestore();
 
 // Helper function to convert Firestore timestamps
