@@ -27,6 +27,15 @@ RUN apk add --no-cache dumb-init
 # Copy custom nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Create startup script to handle dynamic port
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'PORT=${PORT:-8080}' >> /start.sh && \
+    echo 'echo "Starting nginx on port $PORT"' >> /start.sh && \
+    echo 'sed -i "s/listen 8080;/listen $PORT;/" /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "Updated nginx config to listen on port $PORT"' >> /start.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /start.sh && \
+    chmod +x /start.sh
+
 # Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
@@ -44,12 +53,12 @@ USER nginx
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
+# Health check (commented out for Cloud Run compatibility)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ || exit 1
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with dynamic port
+CMD ["/start.sh"]
