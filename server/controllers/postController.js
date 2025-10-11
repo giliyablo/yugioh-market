@@ -1,10 +1,10 @@
-const Post = require('../models/Post');
 const axios = require('axios');
 const formidable = require('formidable');
 const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
 const { enqueue } = require('../services/jobs');
 const { getMarketPrice, getCardImageFromYugipedia } = require('../services/cardData');
+const { postsService } = require('../services/firestoreService');
 
 // Helpers moved to services/cardData to avoid circular deps
 
@@ -25,42 +25,59 @@ exports.getAllPosts = async (req, res) => {
         const pageNum = Math.max(parseInt(page, 10) || 1, 1);
         const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-        const filter = { isActive: true };
+        // Get all posts from Firestore
+        let allPosts = await postsService.getAllPosts();
+        
+        // Filter by isActive
+        allPosts = allPosts.filter(post => post.isActive !== false);
+        
+        // Apply search filters
         if (q && typeof q === 'string') {
-            filter.cardName = { $regex: q, $options: 'i' };
+            const searchTerm = q.toLowerCase();
+            allPosts = allPosts.filter(post => 
+                post.cardName && post.cardName.toLowerCase().includes(searchTerm)
+            );
         }
+        
         if (user && typeof user === 'string') {
-            // Match either uid exactly or displayName partially (case-insensitive)
-            filter.$or = [
-                { 'user.uid': user },
-                { 'user.displayName': { $regex: user, $options: 'i' } }
-            ];
+            const userTerm = user.toLowerCase();
+            allPosts = allPosts.filter(post => 
+                (post.user && post.user.uid === user) ||
+                (post.user && post.user.displayName && post.user.displayName.toLowerCase().includes(userTerm))
+            );
         }
 
-        let sortSpec = { createdAt: -1 }; // default latest
+        // Apply sorting
         if (sortBy) {
             const dir = (String(sortDir).toLowerCase() === 'asc') ? 1 : -1;
-            const allowed = new Set(['createdAt','price','cardName','postType','condition','user.displayName','user.contact.phoneNumber']);
+            const allowed = new Set(['createdAt','price','cardName','postType','condition']);
             if (allowed.has(sortBy)) {
-                sortSpec = { [sortBy]: dir };
+                allPosts.sort((a, b) => {
+                    const aVal = a[sortBy];
+                    const bVal = b[sortBy];
+                    if (aVal < bVal) return -1 * dir;
+                    if (aVal > bVal) return 1 * dir;
+                    return 0;
+                });
             }
         } else {
             if (sort === 'cheapest') {
-                sortSpec = { price: 1, createdAt: -1 };
+                allPosts.sort((a, b) => {
+                    if (a.price === b.price) return new Date(b.createdAt) - new Date(a.createdAt);
+                    return (a.price || 0) - (b.price || 0);
+                });
             } else if (sort === 'alpha') {
-                sortSpec = { cardName: 1 };
+                allPosts.sort((a, b) => (a.cardName || '').localeCompare(b.cardName || ''));
+            } else {
+                // Default: latest
+                allPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             }
         }
 
-        const [items, total] = await Promise.all([
-            Post.find(filter)
-                .sort(sortSpec)
-                .skip((pageNum - 1) * pageSize)
-                .limit(pageSize),
-            Post.countDocuments(filter)
-        ]);
-
-        // Remove blocking backfill work here; enrichment happens via background jobs now
+        // Apply pagination
+        const total = allPosts.length;
+        const startIndex = (pageNum - 1) * pageSize;
+        const items = allPosts.slice(startIndex, startIndex + pageSize);
 
         res.json({
             items,
@@ -96,7 +113,7 @@ exports.createPost = async (req, res) => {
         const email = contactEmail || userEmail || null;
         const phoneNumber = contactPhone || userPhone || null;
 
-        const newPost = new Post({
+        const postData = {
             user: {
                 uid,
                 displayName,
@@ -108,19 +125,22 @@ exports.createPost = async (req, res) => {
             cardName,
             postType,
             price: finalPrice,
-            condition,
-            cardImageUrl: finalImageUrl,
+            condition: condition || 'Near Mint',
+            cardImageUrl: finalImageUrl || 'https://placehold.co/243x353?text=No+Image',
             isApiPrice,
+            isActive: true,
             enrichment: {
                 priceStatus: (finalPrice === null ? 'pending' : 'idle'),
                 imageStatus: (!finalImageUrl ? 'pending' : 'idle'),
                 lastError: null
             }
-        });
+        };
 
-        const post = await newPost.save();
+        const postId = await postsService.createPost(postData);
+        const post = { id: postId, ...postData };
+        
         // Enqueue background enrichment
-        enqueue({ postId: post._id.toString(), cardName });
+        enqueue({ postId: postId, cardName });
         res.status(201).json(post);
 
     } catch (err) {
@@ -133,7 +153,7 @@ exports.createPost = async (req, res) => {
 exports.getMyPosts = async (req, res) => {
     try {
         const { uid } = req.user;
-        const posts = await Post.find({ 'user.uid': uid }).sort({ createdAt: -1 });
+        const posts = await postsService.getPostsByUser(uid);
         res.json(posts);
     } catch (err) {
         console.error(err.message);
@@ -148,22 +168,24 @@ exports.updatePost = async (req, res) => {
         const { uid } = req.user;
         const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
         
-        const post = await Post.findById(id);
+        const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
         if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
 
+        const updateData = {};
         for (const key of allowedFields) {
             if (req.body[key] !== undefined) {
-                post[key] = req.body[key];
+                updateData[key] = req.body[key];
             }
         }
         // If price is manually updated, it's no longer an API price.
         if (req.body.price !== undefined) {
-            post.isApiPrice = false;
+            updateData.isApiPrice = false;
         }
 
-        const saved = await post.save();
-        return res.json(saved);
+        await postsService.updatePost(id, updateData);
+        const updatedPost = await postsService.getPost(id);
+        return res.json(updatedPost);
     } catch (err) {
         console.error(err.message);
         return res.status(500).send('Server Error');
@@ -175,11 +197,11 @@ exports.deletePost = async (req, res) => {
     try {
         const { id } = req.params;
         const { uid } = req.user;
-        const post = await Post.findById(id);
+        const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
         if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
 
-        await Post.findByIdAndDelete(id);
+        await postsService.deletePost(id);
         return res.json({ msg: 'Post deleted' });
     } catch (err) {
         console.error(err.message);
@@ -247,22 +269,24 @@ exports.createPostsFromList = async (req, res) => {
                 finalPrice = null;
             }
 
-            const newPost = new Post({
+            const postData = {
                 user: { uid, displayName, contact: { email: userEmail, phoneNumber: userPhone || null } },
                 cardName,
                 postType,
                 price: finalPrice,
                 condition,
                 isApiPrice,
-                cardImageUrl: undefined,
+                cardImageUrl: 'https://placehold.co/243x353?text=No+Image',
+                isActive: true,
                 enrichment: {
                     priceStatus: (finalPrice === null ? 'pending' : 'idle'),
                     imageStatus: 'pending',
                     lastError: null
                 }
-            });
-            const saved = await newPost.save();
-            enqueue({ postId: saved._id.toString(), cardName });
+            };
+            const postId = await postsService.createPost(postData);
+            const saved = { id: postId, ...postData };
+            enqueue({ postId: postId, cardName });
             created.push(saved);
         }
 

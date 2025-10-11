@@ -1,5 +1,5 @@
 const puppeteer = require('puppeteer');
-const Post = require('../models/Post');
+const { postsService } = require('./firestoreService');
 const { getMarketPrice, getCardImageFromYugipedia } = require('./cardData');
 const { broadcast } = require('./sse');
 
@@ -35,7 +35,7 @@ async function run() {
 
 async function processJob(job, sharedBrowser) {
     const { postId, cardName } = job;
-    const post = await Post.findById(postId);
+    const post = await postsService.getPost(postId);
     if (!post) return;
 
     const update = { enrichment: { ...post.enrichment } };
@@ -43,7 +43,7 @@ async function processJob(job, sharedBrowser) {
     // Fetch price if missing
     if (post.price === undefined || post.price === null || post.price === "") {
         update.enrichment.priceStatus = 'pending';
-        await Post.updateOne({ _id: postId }, { $set: { enrichment: update.enrichment } });
+        await postsService.updatePost(postId, { enrichment: update.enrichment });
         try {
             const result = await getMarketPrice(cardName, sharedBrowser || null);
             if (result && result.price !== null) {
@@ -64,7 +64,7 @@ async function processJob(job, sharedBrowser) {
     const isPlaceholder = (url) => !url || (typeof url === 'string' && (url.includes('placehold.co') || url == ""));
     if (isPlaceholder(post.cardImageUrl)) {
         update.enrichment.imageStatus = 'pending';
-        await Post.updateOne({ _id: postId }, { $set: { enrichment: update.enrichment } });
+        await postsService.updatePost(postId, { enrichment: update.enrichment });
         try {
             const img = await getCardImageFromYugipedia(cardName);
             if (img) {
@@ -80,9 +80,10 @@ async function processJob(job, sharedBrowser) {
         }
     }
 
-    const saved = await Post.findByIdAndUpdate(postId, { $set: update }, { new: true });
+    await postsService.updatePost(postId, update);
+    const saved = await postsService.getPost(postId);
     if (saved) {
-        broadcast('post.updated', { id: saved._id.toString(), post: saved });
+        broadcast('post.updated', { id: saved.id, post: saved });
     }
 }
 

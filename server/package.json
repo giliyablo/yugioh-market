@@ -10,7 +10,7 @@
   "keywords": [
     "yugioh",
     "express",
-    "mongodb",
+    "firestore",
     "nodejs"
   ],
   "author": "",
@@ -21,9 +21,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "firebase-admin": "^12.1.1",
+    "firebase-admin": "^12.7.0",
     "formidable": "^3.5.4",
-    "mongoose": "^8.18.2",
     "puppeteer": "^24.23.0"
   },
   "devDependencies": {

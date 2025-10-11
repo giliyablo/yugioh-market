@@ -1,19 +1,21 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 // IMPORTANT: Replace with your Firebase project's configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCVtzbsX6Vu6T8Z2-XqVq3pqANFJvZdVp8",
-  authDomain: "tcg-cards-market-chat.firebaseapp.com",
-  projectId: "tcg-cards-market-chat",
-  storageBucket: "tcg-cards-market-chat.firebasestorage.app",
-  messagingSenderId: "904095739467",
-  appId: "1:904095739467:web:3453b6fe5b4ce67e0927ce",
-  measurementId: "G-MWNXW8C57C"
+  apiKey: "AIzaSyC56Jt10JNqBYgq2_uIMurAdZwZqHZ5bSg",
+  authDomain: "local-tcg-market-chat.firebaseapp.com",
+  projectId: "local-tcg-market-chat",
+  storageBucket: "local-tcg-market-chat.firebasestorage.app",
+  messagingSenderId: "28158475801",
+  appId: "1:28158475801:web:593157fbf622ae5e483488",
+  measurementId: "G-SW97RJM0S4"
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
 export const googleProvider = new GoogleAuthProvider();
 export const facebookProvider = new FacebookAuthProvider();
 

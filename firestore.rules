@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection rules
+    match /users/{userId} {
+      // Users can read and write their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow public read access to user profiles (for marketplace functionality)
+      allow read: if request.auth != null;
+    }
+    
+    // Posts collection rules
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can create posts
+      allow create: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      
+      // Only the post author can update/delete their posts
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+    
+    // Cards collection rules
+    match /cards/{cardId} {
+      // Anyone can read cards
+      allow read: if request.auth != null;
+      
+      // Only admins can create/update/delete cards (you may want to restrict this further)
+      allow write: if request.auth != null;
+    }
+    
+    // Listings collection rules
+    match /listings/{listingId} {
+      // Anyone can read listings
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can create listings
+      allow create: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+      
+      // Only the listing owner can update/delete their listings
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.userId;
+    }
+    
+    // Offers collection rules
+    match /offers/{offerId} {
+      // Users can read offers for their listings or their own offers
+      allow read: if request.auth != null 
+        && (request.auth.uid == resource.data.buyerId 
+            || request.auth.uid == resource.data.listingOwnerId);
+      
+      // Only authenticated users can create offers
+      allow create: if request.auth != null 
+        && request.auth.uid == resource.data.buyerId;
+      
+      // Only the offer creator or listing owner can update offers
+      allow update: if request.auth != null 
+        && (request.auth.uid == resource.data.buyerId 
+            || request.auth.uid == resource.data.listingOwnerId);
+      
+      // Only the offer creator can delete their offers
+      allow delete: if request.auth != null 
+        && request.auth.uid == resource.data.buyerId;
+    }
+    
+    // Transactions collection rules
+    match /transactions/{transactionId} {
+      // Users can read their own transactions (as buyer or seller)
+      allow read: if request.auth != null 
+        && (request.auth.uid == resource.data.buyerId 
+            || request.auth.uid == resource.data.sellerId);
+      
+      // Only authenticated users can create transactions
+      allow create: if request.auth != null;
+      
+      // Both buyer and seller can update transactions
+      allow update: if request.auth != null 
+        && (request.auth.uid == resource.data.buyerId 
+            || request.auth.uid == resource.data.sellerId);
+    }
+    
+    // Reviews collection rules
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if request.auth != null;
+      
+      // Only authenticated users can create reviews
+      allow create: if request.auth != null 
+        && request.auth.uid == resource.data.reviewerId;
+      
+      // Only the reviewer can update/delete their reviews
+      allow update, delete: if request.auth != null 
+        && request.auth.uid == resource.data.reviewerId;
+    }
+  }
+}

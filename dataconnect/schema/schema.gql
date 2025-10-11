@@ -1,0 +1,71 @@
+type User @table {
+  username: String!
+  email: String!
+  passwordHash: String!
+  createdAt: Timestamp!
+  profilePictureUrl: String
+  bio: String
+  location: String
+}
+
+type Game @table {
+  name: String!
+  createdAt: Timestamp!
+  description: String
+  iconUrl: String
+}
+
+type Card @table {
+  name: String!
+  game: Game!
+  rarity: String!
+  createdAt: Timestamp!
+  imageUrl: String
+  cardText: String
+  set: String
+  cardType: String
+}
+
+type Listing @table {
+  user: User!
+  card: Card!
+  condition: String!
+  price: Float!
+  status: String!
+  createdAt: Timestamp!
+  description: String
+  imageUrl1: String
+  imageUrl2: String
+  updatedAt: Timestamp
+}
+
+type Offer @table {
+  listing: Listing!
+  buyer: User!
+  offerPrice: Float!
+  status: String!
+  createdAt: Timestamp!
+  message: String
+  updatedAt: Timestamp
+}
+
+type Transaction @table {
+  listing: Listing!
+  buyer: User!
+  seller: User!
+  finalPrice: Float!
+  status: String!
+  createdAt: Timestamp!
+  shippingAddress: String
+  trackingNumber: String
+  completedAt: Timestamp
+}
+
+type Review @table {
+  transaction: Transaction!
+  reviewer: User!
+  reviewee: User!
+  rating: Int!
+  createdAt: Timestamp!
+  comment: String
+}
