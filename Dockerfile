@@ -11,11 +11,25 @@ RUN npm run build
 # Server stage
 FROM node:18-alpine AS server
 
+# Install Chrome dependencies for Puppeteer
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    freetype-dev \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    && rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
 # Install server dependencies
 COPY server/package*.json ./
 RUN npm ci --only=production
+
+# Install Puppeteer Chrome browser
+RUN npx puppeteer browsers install chrome
 
 # Copy server code
 COPY server/ ./

@@ -8,7 +8,19 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
     let page = null;
     try {
         if (!browser) {
-            browser = await puppeteer.launch({ headless: "new" });
+            browser = await puppeteer.launch({ 
+                headless: "new",
+                executablePath: '/usr/bin/chromium-browser',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--disable-gpu'
+                ]
+            });
         }
         page = await browser.newPage();
 

@@ -29,28 +29,28 @@ api.interceptors.request.use(
 // --- Post Functions ---
 
 // Fetch all active posts with optional filters/pagination
-export const getPosts = (params) => api.get('/posts', { params });
+export const getPosts = (params) => api.get('/', { params });
 
 // Fetch posts belonging to the current user
-export const getMyPosts = () => api.get('/posts/my-posts');
+export const getMyPosts = () => api.get('/my-posts');
 
 // Create a single new post
-export const createPost = (postData) => api.post('/posts', postData);
+export const createPost = (postData) => api.post('/', postData);
 
 // Create multiple posts from a file upload (multipart)
-export const createBatchPosts = (formData) => api.post('/posts/batch', formData, {
+export const createBatchPosts = (formData) => api.post('/batch', formData, {
     headers: {
         'Content-Type': 'multipart/form-data',
     }
 });
 
 // Create multiple posts from a list of names
-export const createPostsFromList = (payload) => api.post('/posts/batch-list', payload);
+export const createPostsFromList = (payload) => api.post('/batch-list', payload);
 
 // Update an existing post
-export const updatePost = (id, payload) => api.put(`/posts/${id}`, payload);
+export const updatePost = (id, payload) => api.put(`/${id}`, payload);
 
 // Delete a post
-export const deletePost = (id) => api.delete(`/posts/${id}`);
+export const deletePost = (id) => api.delete(`/${id}`);
 
 export default api;

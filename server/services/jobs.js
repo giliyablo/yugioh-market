@@ -17,7 +17,19 @@ async function run() {
     isRunning = true;
     let browser = null;
     try {
-        browser = await puppeteer.launch({ headless: 'new' });
+        browser = await puppeteer.launch({ 
+            headless: 'new',
+            executablePath: '/usr/bin/chromium-browser',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ]
+        });
     } catch (e) {
         // If puppeteer fails, we will still try single-mode fetches
         browser = null;
