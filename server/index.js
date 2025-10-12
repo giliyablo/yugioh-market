@@ -76,7 +76,7 @@ app.use(express.static('public'));
 
 // --- API Routes ---
 // All routes related to posts will be prefixed with /api/posts
-app.use('/api/posts', require('./routes/posts'));
+app.use('/api', require('./routes/posts'));
 
 // --- Root Route ---
 app.get('/', (req, res) => {
