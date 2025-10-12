@@ -5,7 +5,7 @@ services:
   server:
     build:
       context: ./server
-      dockerfile: Dockerfile.robust
+      dockerfile: Dockerfile
     container_name: tcg-market-server
     ports:
       - "5000:5000"
