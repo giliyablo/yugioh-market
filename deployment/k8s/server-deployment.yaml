@@ -19,7 +19,7 @@ spec:
       - name: server
         image: tcg-market-server:latest
         ports:
-        - containerPort: 80
+        - containerPort: 5000
         env:
         - name: NODE_ENV
           valueFrom:
@@ -41,12 +41,12 @@ spec:
         livenessProbe:
           httpGet:
             path: /api/health
-            port: 80
+            port: 5000
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /api/health
-            port: 80
+            port: 5000
           initialDelaySeconds: 5
           periodSeconds: 5

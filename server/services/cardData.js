@@ -17,7 +17,7 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
         await page.goto(searchUrl, { waitUntil: 'networkidle2' });
 
         const priceSelector = 'span.product-card__market-price--value';
-        await page.waitForSelector(priceSelector, { timeout: 180 });
+        await page.waitForSelector(priceSelector, { timeout: 15000 });
         const priceElementText = await page.$eval(priceSelector, el => el.textContent);
         const price = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
 

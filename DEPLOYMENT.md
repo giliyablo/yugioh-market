@@ -122,7 +122,7 @@ gcloud builds submit --config deployment/cloudbuild.yaml .
 
 #### Server
 - `NODE_ENV`: production
-- `PORT`: 80
+- `PORT`: 5000
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase service account JSON
 
 #### Client
@@ -132,7 +132,7 @@ gcloud builds submit --config deployment/cloudbuild.yaml .
 Create a `.env` file in the root directory:
 ```bash
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-VITE_API_URL=http://localhost:80/api
+VITE_API_URL=http://localhost:5000/api
 ```
 
 ## 📊 Monitoring and Health Checks
@@ -173,8 +173,8 @@ VITE_API_URL=http://localhost:80/api
 2. **Service Communication**:
    ```bash
    # Test API connectivity
-   curl http://localhost:80/api/health
-   curl http://localhost:80/health
+   curl http://localhost:5000/api/health
+   curl http://localhost:5000/health
    ```
 
 3. **Firebase Authentication**:

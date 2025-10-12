@@ -50,9 +50,9 @@ This guide will help you deploy your TCG Marketplace to Google Cloud Platform fo
    gcloud run deploy tcg-marketplace \
      --image gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest \
      --platform managed \
-     --region us-central1 \
+     --region me-west1 \
      --allow-unauthenticated \
-     --port 80 \
+     --port 5000 \
      --memory 2Gi \
      --cpu 2
    ```
@@ -112,16 +112,16 @@ For production deployments with load balancers and advanced configuration:
 
 ```bash
 # View logs
-gcloud run services logs read tcg-marketplace --region us-central1
+gcloud run services logs read tcg-marketplace --region me-west1
 
 # Update service
-gcloud run services update tcg-marketplace --region us-central1
+gcloud run services update tcg-marketplace --region me-west1
 
 # Scale service
 gcloud run services update tcg-marketplace \
   --min-instances 2 \
   --max-instances 20 \
-  --region us-central1
+  --region me-west1
 ```
 
 ## 🔧 Configuration
@@ -131,7 +131,7 @@ gcloud run services update tcg-marketplace \
 Set these in Cloud Run or via Terraform:
 
 - `NODE_ENV=production`
-- `PORT=80`
+- `PORT=5000`
 - `FIREBASE_SERVICE_ACCOUNT_JSON` (for server-side Firestore access)
 
 ### Custom Domain (Optional)
@@ -171,7 +171,7 @@ Set these in Cloud Run or via Terraform:
 2. **Service Won't Start**
    ```bash
    # Check service logs
-   gcloud run services logs read tcg-marketplace --region us-central1
+   gcloud run services logs read tcg-marketplace --region me-west1
    ```
 
 3. **Permission Errors**
@@ -197,7 +197,7 @@ gcloud run services update tcg-marketplace \
   --min-instances 5 \
   --max-instances 100 \
   --concurrency 1000 \
-  --region us-central1
+  --region me-west1
 ```
 
 ## 🔒 Security

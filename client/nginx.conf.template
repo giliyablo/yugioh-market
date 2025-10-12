@@ -1,5 +1,5 @@
 server {
-    # Listen on port 80 (the standard HTTP port)
+    # Listen on port 5000 (the standard HTTP port)
     listen ${PORT};
     listen [::]:${PORT};
     server_name localhost;

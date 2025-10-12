@@ -152,7 +152,7 @@ const MyPostsPage = () => {
                                     </td>
                                     <td className="table-cell-image">
                                         <img
-                                            src={post.cardImageUrl || 'https://placehold.co/80x116?text=No+Image'}
+                                            src={post.cardImageUrl || 'https://placehold.co/5000x116?text=No+Image'}
                                             alt={post.cardName}
                                             loading="lazy"
                                         />

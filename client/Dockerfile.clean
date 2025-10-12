@@ -1,17 +1,18 @@
-# Simple single-stage build
+# Clean build without cache issues
 FROM node:20-alpine
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies with integrity check bypass
-RUN npm ci --no-audit --no-fund --ignore-scripts || \
-    (npm cache clean --force && \
-     rm -rf node_modules package-lock.json && \
-     npm install --no-audit --no-fund)
+# Clear any existing cache and install dependencies
+RUN rm -rf ~/.npm && \
+    rm -rf /tmp/* && \
+    npm cache clean --force && \
+    npm install --no-optional --no-audit --no-fund && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .

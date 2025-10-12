@@ -62,7 +62,7 @@ gcloud run deploy $CLIENT_SERVICE \
   --platform managed \
   --region $REGION \
   --allow-unauthenticated \
-  --port 80 \
+  --port 5000 \
   --memory 1Gi \
   --cpu 1 \
   --min-instances 1 \

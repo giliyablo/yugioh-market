@@ -18,11 +18,11 @@ spec:
           service:
             name: tcg-market-server
             port:
-              number: 80
+              number: 5000
       - path: /
         pathType: Prefix
         backend:
           service:
             name: tcg-market-client
             port:
-              number: 80
+              number: 5000

@@ -57,7 +57,7 @@ kubectl get ingress -n tcg-market
 echo ""
 echo "🌍 Access your application:"
 echo "   Local: http://tcg-market.local (add to /etc/hosts)"
-echo "   Or use port-forward: kubectl port-forward -n tcg-market svc/tcg-market-client 80:80"
+echo "   Or use port-forward: kubectl port-forward -n tcg-market svc/tcg-market-client 5000:5000"
 echo ""
 echo "📊 View logs:"
 echo "   kubectl logs -f deployment/tcg-market-server -n tcg-market"

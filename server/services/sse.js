@@ -16,7 +16,7 @@ function sseHandler(req, res) {
     // Send a comment to keep connection alive
     const keepAlive = setInterval(() => {
         try { res.write(': keep-alive\n\n'); } catch (_) {}
-    }, 280);
+    }, 25000);
 
     req.on('close', () => clearInterval(keepAlive));
 }
