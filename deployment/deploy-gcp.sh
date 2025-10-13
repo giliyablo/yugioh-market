@@ -6,6 +6,10 @@ PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
+# Optional permanent domains. Export before running or set inline:
+# SERVER_DOMAIN=api.example.com CLIENT_DOMAIN=app.example.com ./deployment/deploy-gcp.sh
+SERVER_DOMAIN=${SERVER_DOMAIN:-"api.tcg-marketplace-server.com"}
+CLIENT_DOMAIN=${CLIENT_DOMAIN:-"www.tcg-marketplace-israel.com"}
 
 # Check for resume flag
 RESUME_FROM=${1:-""}
@@ -71,6 +75,17 @@ if [ "$SKIP_SERVER" = "false" ]; then
       --timeout 3600 \
       --set-env-vars NODE_ENV=production
 
+    # Map custom domain for server if provided
+    if [ -n "$SERVER_DOMAIN" ]; then
+        echo "🔗 Creating domain mapping for server: $SERVER_DOMAIN"
+        gcloud run domain-mappings create \
+          --service $SERVER_SERVICE \
+          --domain $SERVER_DOMAIN \
+          --region $REGION || true
+        echo "📄 DNS records for $SERVER_DOMAIN:"
+        gcloud run domain-mappings describe --domain $SERVER_DOMAIN --region $REGION || true
+    fi
+
     # Get server URL
     SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
     echo "🔗 Server deployed at: $SERVER_URL"
@@ -105,7 +120,18 @@ if [ "$SKIP_CLIENT_DEPLOY" = "false" ]; then
       --min-instances 1 \
       --max-instances 5 \
       --timeout 3600 \
-      --set-env-vars VITE_API_URL=$SERVER_URL/api
+      --set-env-vars VITE_API_URL=${SERVER_DOMAIN:+https://$SERVER_DOMAIN/api}${SERVER_DOMAIN:-$SERVER_URL/api}
+
+    # Map custom domain for client if provided
+    if [ -n "$CLIENT_DOMAIN" ]; then
+        echo "🔗 Creating domain mapping for client: $CLIENT_DOMAIN"
+        gcloud run domain-mappings create \
+          --service $CLIENT_SERVICE \
+          --domain $CLIENT_DOMAIN \
+          --region $REGION || true
+        echo "📄 DNS records for $CLIENT_DOMAIN:"
+        gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --region $REGION || true
+    fi
 else
     echo "⏭️  Skipping client deployment (already completed)"
 fi
@@ -114,8 +140,8 @@ fi
 CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
 
 echo "✅ Deployment complete!"
-echo "🌍 Your application is live at: $CLIENT_URL"
-echo "🔗 API server: $SERVER_URL"
+echo "🌍 Your application is live at: ${CLIENT_DOMAIN:-$CLIENT_URL}"
+echo "🔗 API server: ${SERVER_DOMAIN:-$SERVER_URL}"
 echo "📊 Monitor your services:"
 echo "   Server: https://console.cloud.google.com/run/detail/$REGION/$SERVER_SERVICE/metrics?project=$PROJECT_ID"
 echo "   Client: https://console.cloud.google.com/run/detail/$REGION/$CLIENT_SERVICE/metrics?project=$PROJECT_ID"

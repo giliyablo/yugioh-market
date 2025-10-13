@@ -7,6 +7,9 @@ REGION="me-west1"
 SERVER_SERVICE="tcg-marketplace-server"
 GITHUB_REPO="giliyablo/tcg-market"
 GITHUB_BRANCH=${1:-"main"}
+# Optional permanent domain. Export before running or set inline:
+# SERVER_DOMAIN=api.example.com ./deployment/build-server-only.sh
+SERVER_DOMAIN=${SERVER_DOMAIN:-""}
 
 echo "🚀 Building and deploying SERVER ONLY from GitHub..."
 
@@ -60,10 +63,21 @@ gcloud run deploy $SERVER_SERVICE \
   --timeout 3600 \
   --set-env-vars NODE_ENV=production
 
+# Map custom domain for server if provided
+if [ -n "$SERVER_DOMAIN" ]; then
+  echo "🔗 Creating domain mapping for server: $SERVER_DOMAIN"
+  gcloud run domain-mappings create \
+    --service $SERVER_SERVICE \
+    --domain $SERVER_DOMAIN \
+    --region $REGION || true
+  echo "📄 DNS records for $SERVER_DOMAIN:"
+  gcloud run domain-mappings describe --domain $SERVER_DOMAIN --region $REGION || true
+fi
+
 # Get server URL
 SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
 
 echo "✅ Server build and deployment complete!"
-echo "🔗 Server deployed at: $SERVER_URL"
+echo "🔗 Server deployed at: ${SERVER_DOMAIN:-$SERVER_URL}"
 echo "📊 Monitor your server:"
 echo "   https://console.cloud.google.com/run/detail/$REGION/$SERVER_SERVICE/metrics?project=$PROJECT_ID"

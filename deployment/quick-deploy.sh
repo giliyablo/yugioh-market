@@ -5,6 +5,10 @@ set -e
 
 PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
+# Optional permanent domains. Export before running or set inline:
+# SERVER_DOMAIN=api.example.com CLIENT_DOMAIN=app.example.com ./deployment/quick-deploy.sh
+SERVER_DOMAIN=${SERVER_DOMAIN:-""}
+CLIENT_DOMAIN=${CLIENT_DOMAIN:-""}
 
 echo "🚀 Quick deployment to Google Cloud Run"
 
@@ -23,6 +27,17 @@ gcloud run deploy tcg-server \
   --port 5000 \
   --memory 2Gi \
   --cpu 2
+
+# Map custom domain for server if provided
+if [ -n "$SERVER_DOMAIN" ]; then
+  echo "🔗 Creating domain mapping for server: $SERVER_DOMAIN"
+  gcloud run domain-mappings create \
+    --service tcg-server \
+    --domain $SERVER_DOMAIN \
+    --region $REGION || true
+  echo "📄 DNS records for $SERVER_DOMAIN:"
+  gcloud run domain-mappings describe --domain $SERVER_DOMAIN --region $REGION || true
+fi
 
 # Get server URL
 SERVER_URL=$(gcloud run services describe tcg-server --region $REGION --format 'value(status.url)')
@@ -43,7 +58,18 @@ gcloud run deploy tcg-client \
   --port 3000 \
   --memory 1Gi \
   --cpu 1 \
-  --set-env-vars VITE_API_URL=$SERVER_URL/api
+  --set-env-vars VITE_API_URL=${SERVER_DOMAIN:+https://$SERVER_DOMAIN/api}${SERVER_DOMAIN:-$SERVER_URL/api}
+
+# Map custom domain for client if provided
+if [ -n "$CLIENT_DOMAIN" ]; then
+  echo "🔗 Creating domain mapping for client: $CLIENT_DOMAIN"
+  gcloud run domain-mappings create \
+    --service tcg-client \
+    --domain $CLIENT_DOMAIN \
+    --region $REGION || true
+  echo "📄 DNS records for $CLIENT_DOMAIN:"
+  gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --region $REGION || true
+fi
 
 # Get client URL
 CLIENT_URL=$(gcloud run services describe tcg-client --region $REGION --format 'value(status.url)')
@@ -51,5 +77,5 @@ echo "✅ Client deployed at: $CLIENT_URL"
 
 echo ""
 echo "🎉 Deployment complete!"
-echo "🌍 Your app: $CLIENT_URL"
-echo "🔧 API: $SERVER_URL"
+echo "🌍 Your app: ${CLIENT_DOMAIN:-$CLIENT_URL}"
+echo "🔧 API: ${SERVER_DOMAIN:-$SERVER_URL}"

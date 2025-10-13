@@ -6,6 +6,10 @@ PROJECT_ID="fourth-arena-474414-h6"
 REGION="me-west1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
+# Optional permanent domains. Export before running or set inline:
+# SERVER_DOMAIN=api.example.com CLIENT_DOMAIN=app.example.com ./deployment/build-client-only.sh
+SERVER_DOMAIN=${SERVER_DOMAIN:-""}
+CLIENT_DOMAIN=${CLIENT_DOMAIN:-""}
 GITHUB_REPO="giliyablo/tcg-market"
 GITHUB_BRANCH=${1:-"main"}
 
@@ -33,11 +37,11 @@ gcloud services enable compute.googleapis.com
 
 # Get existing server URL for client environment variable
 SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)' 2>/dev/null || echo "")
-if [ -z "$SERVER_URL" ]; then
+if [ -z "$SERVER_URL" ] && [ -z "$SERVER_DOMAIN" ]; then
     echo "⚠️  Server not found. Client will be deployed without API URL."
     echo "   Deploy server first or update VITE_API_URL manually."
 else
-    echo "🔗 Using existing server: $SERVER_URL"
+    echo "🔗 Using server: ${SERVER_DOMAIN:-$SERVER_URL}"
 fi
 
 # Create a temporary directory and clone the repo
@@ -68,12 +72,23 @@ gcloud run deploy $CLIENT_SERVICE \
   --min-instances 1 \
   --max-instances 5 \
   --timeout 3600 \
-  --set-env-vars VITE_API_URL=$SERVER_URL/api
+  --set-env-vars VITE_API_URL=${SERVER_DOMAIN:+https://$SERVER_DOMAIN/api}${SERVER_DOMAIN:-$SERVER_URL/api}
+
+# Map custom domain for client if provided
+if [ -n "$CLIENT_DOMAIN" ]; then
+  echo "🔗 Creating domain mapping for client: $CLIENT_DOMAIN"
+  gcloud run domain-mappings create \
+    --service $CLIENT_SERVICE \
+    --domain $CLIENT_DOMAIN \
+    --region $REGION || true
+  echo "📄 DNS records for $CLIENT_DOMAIN:"
+  gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --region $REGION || true
+fi
 
 # Get client URL
 CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
 
 echo "✅ Client build and deployment complete!"
-echo "🌍 Client deployed at: $CLIENT_URL"
+echo "🌍 Client deployed at: ${CLIENT_DOMAIN:-$CLIENT_URL}"
 echo "📊 Monitor your client:"
 echo "   https://console.cloud.google.com/run/detail/$REGION/$CLIENT_SERVICE/metrics?project=$PROJECT_ID"
