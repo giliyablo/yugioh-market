@@ -18,7 +18,8 @@ const MyPostsPage = () => {
         const fetchMyPosts = async () => {
             try {
                 const res = await getMyPosts();
-                setPosts(res.data);
+                const items = Array.isArray(res.data?.data) ? res.data.data : [];
+                setPosts(items);
             } catch (err) {
                 setError('Failed to fetch your posts.');
                 console.error(err);
@@ -77,8 +78,9 @@ const MyPostsPage = () => {
     };
 
     const sortedPosts = useMemo(() => {
-        if (!sortBy) return posts;
-        return [...posts].sort((a, b) => {
+        const list = Array.isArray(posts) ? posts : [];
+        if (!sortBy) return list;
+        return [...list].sort((a, b) => {
             const getField = (obj, path) => path.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
             
             const valA = getField(a, sortBy);

@@ -67,8 +67,9 @@
 }
 
 .table-cell-image img {
-    max-width: 5000px;
-    height: auto;
+    height: 120px;
+    width: auto;
+    object-fit: contain;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
