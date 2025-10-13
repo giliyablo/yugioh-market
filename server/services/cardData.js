@@ -21,12 +21,13 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                 } catch (_) {
                     // If Puppeteer can't find Chrome, try common paths
                     const commonPaths = [
-                        '/usr/bin/chromium-browser',
-                        '/usr/bin/chromium',
-                        '/usr/bin/google-chrome',
-                        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-                        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+                        '/usr/bin/chromium-browser',  // Alpine Linux
+                        '/usr/bin/chromium',          // Alpine Linux alternative
+                        '/usr/bin/google-chrome',     // Ubuntu/Debian
+                        '/usr/bin/google-chrome-stable', // Ubuntu/Debian
+                        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
+                        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
+                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
                     ];
                     
                     // Try to find Chrome in common locations
@@ -35,6 +36,7 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                         try {
                             if (fs.existsSync(path)) {
                                 resolvedExecutablePath = path;
+                                console.log(`Found browser executable at: ${path}`);
                                 break;
                             }
                         } catch (_) {
@@ -56,7 +58,12 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                     '--disable-gpu',
                     '--disable-web-security',
                     '--disable-features=VizDisplayCompositor',
-                    '--single-process'
+                    '--single-process',
+                    '--disable-background-timer-throttling',
+                    '--disable-backgrounding-occluded-windows',
+                    '--disable-renderer-backgrounding',
+                    '--disable-features=TranslateUI',
+                    '--disable-ipc-flooding-protection'
                 ],
                 timeout: 60000, // Increase browser launch timeout to 60 seconds
                 protocolTimeout: 60000 // Increase protocol timeout to 60 seconds
@@ -122,6 +129,16 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         // Try fallback approach with different search parameters
         try {
             console.log(`Attempting fallback search for "${cardName}"...`);
+            
+            // If page is null (browser failed to launch), try to create a new page
+            if (!page && browser) {
+                page = await browser.newPage();
+            }
+            
+            if (!page) {
+                throw new Error('No browser page available for fallback');
+            }
+            
             const fallbackUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${encodeURIComponent(cardName)}`;
             await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
             

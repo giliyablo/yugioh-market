@@ -24,8 +24,11 @@ RUN npm ci --no-audit --no-fund --ignore-scripts || \
      rm -rf node_modules package-lock.json && \
      npm install --no-audit --no-fund)
 
-# Install Puppeteer Chrome browser
-RUN npx puppeteer browsers install chrome
+# Set environment variables for Puppeteer to use system Chromium
+# This prevents Puppeteer from downloading its own Chrome binary
+# and uses the Alpine Linux Chromium instead
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy application code
 COPY . .
