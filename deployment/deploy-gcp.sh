@@ -3,7 +3,7 @@
 set -e
 
 PROJECT_ID="fourth-arena-474414-h6"
-REGION="me-west1"
+REGION="us-central1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
 # Optional permanent domains. Export before running or set inline:
@@ -81,9 +81,10 @@ if [ "$SKIP_SERVER" = "false" ]; then
         gcloud run domain-mappings create \
           --service $SERVER_SERVICE \
           --domain $SERVER_DOMAIN \
+          --platform managed \
           --region $REGION || true
         echo "📄 DNS records for $SERVER_DOMAIN:"
-        gcloud run domain-mappings describe --domain $SERVER_DOMAIN --region $REGION || true
+        gcloud run domain-mappings describe --domain $SERVER_DOMAIN --platform managed --region $REGION || true
     fi
 
     # Get server URL
@@ -128,9 +129,10 @@ if [ "$SKIP_CLIENT_DEPLOY" = "false" ]; then
         gcloud run domain-mappings create \
           --service $CLIENT_SERVICE \
           --domain $CLIENT_DOMAIN \
+          --platform managed \
           --region $REGION || true
         echo "📄 DNS records for $CLIENT_DOMAIN:"
-        gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --region $REGION || true
+        gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --platform managed --region $REGION || true
     fi
 else
     echo "⏭️  Skipping client deployment (already completed)"

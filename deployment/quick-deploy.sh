@@ -4,11 +4,11 @@
 set -e
 
 PROJECT_ID="fourth-arena-474414-h6"
-REGION="me-west1"
+REGION="us-central1"
 # Optional permanent domains. Export before running or set inline:
 # SERVER_DOMAIN=api.example.com CLIENT_DOMAIN=app.example.com ./deployment/quick-deploy.sh
-SERVER_DOMAIN=${SERVER_DOMAIN:-""}
-CLIENT_DOMAIN=${CLIENT_DOMAIN:-""}
+SERVER_DOMAIN=${SERVER_DOMAIN:-"api.tcg-marketplace-server.com"}
+CLIENT_DOMAIN=${CLIENT_DOMAIN:-"www.tcg-marketplace-israel.com"}
 
 echo "🚀 Quick deployment to Google Cloud Run"
 
@@ -34,9 +34,10 @@ if [ -n "$SERVER_DOMAIN" ]; then
   gcloud run domain-mappings create \
     --service tcg-server \
     --domain $SERVER_DOMAIN \
+    --platform managed \
     --region $REGION || true
   echo "📄 DNS records for $SERVER_DOMAIN:"
-  gcloud run domain-mappings describe --domain $SERVER_DOMAIN --region $REGION || true
+  gcloud run domain-mappings describe --domain $SERVER_DOMAIN --platform managed --region $REGION || true
 fi
 
 # Get server URL
@@ -66,9 +67,10 @@ if [ -n "$CLIENT_DOMAIN" ]; then
   gcloud run domain-mappings create \
     --service tcg-client \
     --domain $CLIENT_DOMAIN \
+    --platform managed \
     --region $REGION || true
   echo "📄 DNS records for $CLIENT_DOMAIN:"
-  gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --region $REGION || true
+  gcloud run domain-mappings describe --domain $CLIENT_DOMAIN --platform managed --region $REGION || true
 fi
 
 # Get client URL
