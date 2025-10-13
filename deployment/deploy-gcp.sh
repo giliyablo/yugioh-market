@@ -114,7 +114,7 @@ if [ "$SKIP_CLIENT_DEPLOY" = "false" ]; then
       --platform managed \
       --region $REGION \
       --allow-unauthenticated \
-      --port 5000 \
+      --port 3000 \
       --memory 1Gi \
       --cpu 1 \
       --min-instances 1 \
