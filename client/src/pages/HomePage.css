@@ -13,6 +13,11 @@
     --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* Ensure the main app container spans full width (body is flex-centered in main.css) */
+main {
+    width: 100%;
+}
+
 .home-page {
     font-family: var(--font-family-sans);
     color: var(--color-text-primary);

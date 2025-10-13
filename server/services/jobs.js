@@ -17,9 +17,18 @@ async function run() {
     isRunning = true;
     let browser = null;
     try {
-        browser = await puppeteer.launch({ 
+        const envExecutable = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
+        let resolvedExecutablePath = envExecutable;
+        if (!resolvedExecutablePath) {
+            try {
+                resolvedExecutablePath = puppeteer.executablePath();
+            } catch (_) {
+                resolvedExecutablePath = undefined;
+            }
+        }
+
+        const launchOptions = {
             headless: 'new',
-            executablePath: '/usr/bin/chromium-browser',
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
@@ -29,7 +38,11 @@ async function run() {
                 '--no-zygote',
                 '--disable-gpu'
             ]
-        });
+        };
+        if (resolvedExecutablePath) {
+            launchOptions.executablePath = resolvedExecutablePath;
+        }
+        browser = await puppeteer.launch(launchOptions);
     } catch (e) {
         // If puppeteer fails, we will still try single-mode fetches
         browser = null;

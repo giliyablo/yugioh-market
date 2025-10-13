@@ -8,9 +8,18 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
     let page = null;
     try {
         if (!browser) {
-            browser = await puppeteer.launch({ 
+            const envExecutable = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
+            let resolvedExecutablePath = envExecutable;
+            if (!resolvedExecutablePath) {
+                try {
+                    resolvedExecutablePath = puppeteer.executablePath();
+                } catch (_) {
+                    resolvedExecutablePath = undefined;
+                }
+            }
+
+            const launchOptions = {
                 headless: "new",
-                executablePath: '/usr/bin/chromium-browser',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -20,7 +29,11 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
                     '--no-zygote',
                     '--disable-gpu'
                 ]
-            });
+            };
+            if (resolvedExecutablePath) {
+                launchOptions.executablePath = resolvedExecutablePath;
+            }
+            browser = await puppeteer.launch(launchOptions);
         }
         page = await browser.newPage();
 
