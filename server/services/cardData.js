@@ -3,18 +3,44 @@ const cheerio = require('cheerio');
 const puppeteer = require('puppeteer');
 
 // --- Helper function to get TCGplayer market price ---
-const getMarketPrice = async (cardName, browserInstance = null) => {
+const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) => {
+    const maxRetries = 2;
     let browser = browserInstance;
     let page = null;
+    
+    console.log(`Fetching price for "${cardName}" (attempt ${retryCount + 1}/${maxRetries + 1})`);
+    
     try {
         if (!browser) {
-            const envExecutable = process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser';
-            let resolvedExecutablePath = envExecutable;
+            let resolvedExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            
+            // Try to get Puppeteer's default executable path if not set
             if (!resolvedExecutablePath) {
                 try {
                     resolvedExecutablePath = puppeteer.executablePath();
                 } catch (_) {
-                    resolvedExecutablePath = undefined;
+                    // If Puppeteer can't find Chrome, try common paths
+                    const commonPaths = [
+                        '/usr/bin/chromium-browser',
+                        '/usr/bin/chromium',
+                        '/usr/bin/google-chrome',
+                        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+                    ];
+                    
+                    // Try to find Chrome in common locations
+                    const fs = require('fs');
+                    for (const path of commonPaths) {
+                        try {
+                            if (fs.existsSync(path)) {
+                                resolvedExecutablePath = path;
+                                break;
+                            }
+                        } catch (_) {
+                            continue;
+                        }
+                    }
                 }
             }
 
@@ -27,23 +53,62 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
                     '--disable-accelerated-2d-canvas',
                     '--no-first-run',
                     '--no-zygote',
-                    '--disable-gpu'
-                ]
+                    '--disable-gpu',
+                    '--disable-web-security',
+                    '--disable-features=VizDisplayCompositor',
+                    '--single-process'
+                ],
+                timeout: 60000, // Increase browser launch timeout to 60 seconds
+                protocolTimeout: 60000 // Increase protocol timeout to 60 seconds
             };
-            if (resolvedExecutablePath) {
+            
+            // Only set executablePath if we found one
+            if (resolvedExecutablePath && resolvedExecutablePath !== 'undefined' && resolvedExecutablePath !== undefined) {
                 launchOptions.executablePath = resolvedExecutablePath;
+                console.log(`Using Chrome executable: ${resolvedExecutablePath}`);
             }
+            
             browser = await puppeteer.launch(launchOptions);
         }
         page = await browser.newPage();
 
         const formattedCardName = encodeURIComponent(String(cardName).trim());
         const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
-        await page.goto(searchUrl, { waitUntil: 'networkidle2' });
+        
+        // Set page timeout and navigate with retry logic
+        page.setDefaultTimeout(30000);
+        await page.goto(searchUrl, { 
+            waitUntil: 'networkidle2',
+            timeout: 30000 
+        });
 
         const priceSelector = 'span.product-card__market-price--value';
-        await page.waitForSelector(priceSelector, { timeout: 15000 });
-        const priceElementText = await page.$eval(priceSelector, el => el.textContent);
+        
+        // Try multiple selectors in case the page structure changes
+        const selectors = [
+            'span.product-card__market-price--value',
+            '.product-card__market-price--value',
+            '[data-testid="market-price"]',
+            '.market-price',
+            '.price-value'
+        ];
+        
+        let priceElementText = null;
+        for (const selector of selectors) {
+            try {
+                await page.waitForSelector(selector, { timeout: 10000 });
+                priceElementText = await page.$eval(selector, el => el.textContent);
+                break;
+            } catch (e) {
+                console.log(`Selector ${selector} not found, trying next...`);
+                continue;
+            }
+        }
+        
+        if (!priceElementText) {
+            throw new Error('No price element found with any selector');
+        }
+        
         const price = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
 
         if (!isNaN(price)) {
@@ -53,6 +118,48 @@ const getMarketPrice = async (cardName, browserInstance = null) => {
         return { cardName, price: null };
     } catch (error) {
         console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
+        
+        // Try fallback approach with different search parameters
+        try {
+            console.log(`Attempting fallback search for "${cardName}"...`);
+            const fallbackUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${encodeURIComponent(cardName)}`;
+            await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+            
+            // Try to find any price element on the page
+            const fallbackSelectors = [
+                '.price',
+                '[class*="price"]',
+                '[class*="market"]',
+                '.product-card__price',
+                '.search-result__price'
+            ];
+            
+            for (const selector of fallbackSelectors) {
+                try {
+                    const elements = await page.$$(selector);
+                    for (const element of elements) {
+                        const text = await page.evaluate(el => el.textContent, element);
+                        const price = parseFloat(text.replace(/[^0-9.-]+/g, ""));
+                        if (!isNaN(price) && price > 0) {
+                            console.log(`Fallback found price: $${price}`);
+                            return { cardName, price };
+                        }
+                    }
+                } catch (e) {
+                    continue;
+                }
+            }
+        } catch (fallbackError) {
+            console.error(`Fallback also failed for "${cardName}":`, fallbackError.message);
+        }
+        
+        // Retry logic
+        if (retryCount < maxRetries) {
+            console.log(`Retrying price fetch for "${cardName}" in 2 seconds...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return getMarketPrice(cardName, browserInstance, retryCount + 1);
+        }
+        
         return { cardName, price: null };
     } finally {
         if (page) {
