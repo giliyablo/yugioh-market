@@ -8,8 +8,8 @@ SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
 # Optional permanent domains. Export before running or set inline:
 # SERVER_DOMAIN=api.example.com CLIENT_DOMAIN=app.example.com ./deployment/deploy-gcp.sh
-SERVER_DOMAIN=${SERVER_DOMAIN:-"api.tcg-marketplace-server.com"}
-CLIENT_DOMAIN=${CLIENT_DOMAIN:-"www.tcg-marketplace-israel.com"}
+SERVER_DOMAIN=${SERVER_DOMAIN:-"api.tcgsmarketplace.com"}
+CLIENT_DOMAIN=${CLIENT_DOMAIN:-"www.tcgsmarketplace.com"}
 
 # Check for resume flag
 RESUME_FROM=${1:-""}

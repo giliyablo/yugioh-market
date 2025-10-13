@@ -132,7 +132,7 @@ gcloud builds submit --config deployment/cloudbuild.yaml .
 Create a `.env` file in the root directory:
 ```bash
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-VITE_API_URL=http://localhost:5000/api
+VITE_API_URL=https://api.tcgsmarketplace.com/api
 ```
 
 ## 📊 Monitoring and Health Checks

@@ -5,7 +5,7 @@ import { auth } from './firebase';
 // In production, this will be set by the deployment environment
 // In Docker, this will be the internal service name
 const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? 'http://tcg-market-server:5000/api' : 'https://tcg-marketplace-server-650223673903.me-west1.run.app/api');
+  (import.meta.env.PROD ? 'https://api.tcgsmarketplace.com/api' : 'https://api.tcgsmarketplace.com/api');
 
 const api = axios.create({
     baseURL: API_URL,
