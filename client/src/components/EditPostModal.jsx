@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { updatePost } from '../services/api';
 import './Modal.css'; // Import modal-specific styles
 
 const EditPostModal = ({ post, onClose, onUpdate }) => {
-    const { currentUser } = useAuth();
     const [formData, setFormData] = useState(post);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -35,7 +33,7 @@ const EditPostModal = ({ post, onClose, onUpdate }) => {
                 cardImageUrl: formData.cardImageUrl
             };
 
-            const { data } = await updatePost(post._id, updatePayload);
+            const { data } = await updatePost(post.id, updatePayload);
             onUpdate(data); // This will update the post in the parent and close the modal
 																				
         } catch (err) {

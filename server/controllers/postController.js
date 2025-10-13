@@ -154,7 +154,7 @@ exports.getMyPosts = async (req, res) => {
     try {
         const { uid } = req.user;
         const posts = await postsService.getPostsByUser(uid);
-        res.json(posts);
+        res.json({ data: posts });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');

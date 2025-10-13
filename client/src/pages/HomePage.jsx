@@ -55,9 +55,9 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
 
     const handlePostUpdate = (updatedPost) => {
         if (!updatedPost.isActive) {
-            setPosts(posts.filter(p => p._id !== updatedPost._id));
+            setPosts(posts.filter(p => p.id !== updatedPost.id));
         } else {
-            setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+            setPosts(posts.map(p => p.id === updatedPost.id ? updatedPost : p));
         }
         setEditingPost(null);
     };
@@ -66,7 +66,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
         if (window.confirm('Are you sure you want to delete this post?')) {
             try {
                 await deletePost(postId);
-                setPosts(posts.filter(p => p._id !== postId));
+                setPosts(posts.filter(p => p.id !== postId));
             } catch (e) {
                 console.error(e);
                 alert('Failed to delete post.');
@@ -77,8 +77,8 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
     const handleCompletePost = async (post) => {
         if (window.confirm('Mark this post as completed? It will be removed from the main list.')) {
             try {
-                await updatePost(post._id, { isActive: false });
-                setPosts(posts.filter(p => p._id !== post._id));
+                await updatePost(post.id, { isActive: false });
+                setPosts(posts.filter(p => p.id !== post.id));
             } catch (e) {
                 console.error(e);
                 alert('Failed to update post status.');
@@ -148,7 +148,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
                     <tbody>
                         {posts.length > 0 ? (
                             posts.map((post) => (
-                                <tr key={post._id}>
+                                <tr key={post.id}>
                                     <td className="table-cell-image">
                                         <img
                                             src={post.cardImageUrl || 'https://placehold.co/5000x116?text=No+Image'}
@@ -178,7 +178,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
                                                 <>
                                                     <button className="btn btn--secondary" onClick={() => setEditingPost(post)}>Edit</button>
                                                     <button className="btn btn--success" onClick={() => handleCompletePost(post)}>Complete</button>
-                                                    <button className="btn btn--danger" onClick={() => handleDelete(post._id)}>Delete</button>
+                                                    <button className="btn btn--danger" onClick={() => handleDelete(post.id)}>Delete</button>
                                                 </>
                                             ) : currentUser ? (
                                                 <button className="btn btn--primary">Contact</button>
@@ -229,7 +229,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
 
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id}
+                    key={editingPost.id}
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}

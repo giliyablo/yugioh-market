@@ -54,7 +54,7 @@ const postsService = {
   getPostsByUser: async (userId) => {
     try {
       const snapshot = await db.collection('posts')
-        .where('userId', '==', userId)
+        .where('user.uid', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
       

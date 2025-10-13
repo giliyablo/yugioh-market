@@ -30,7 +30,7 @@ const MyPostsPage = () => {
     }, []);
 
     const handlePostUpdate = (updatedPost) => {
-        setPosts(posts.map(p => p._id === updatedPost._id ? updatedPost : p));
+        setPosts(posts.map(p => p.id === updatedPost.id ? updatedPost : p));
         setEditingPost(null);
     };
 
@@ -38,7 +38,7 @@ const MyPostsPage = () => {
         if (window.confirm('Are you sure you want to permanently delete this post?')) {
             try {
                 await deletePost(postId);
-                setPosts(posts.filter(p => p._id !== postId));
+                setPosts(posts.filter(p => p.id !== postId));
             } catch (e) {
                 console.error(e);
                 alert('Failed to delete post.');
@@ -51,7 +51,7 @@ const MyPostsPage = () => {
         const action = newStatus ? 're-list' : 'complete';
         if (window.confirm(`Are you sure you want to ${action} this post?`)) {
             try {
-                const { data } = await updatePost(post._id, { isActive: newStatus });
+                const { data } = await updatePost(post.id, { isActive: newStatus });
                 handlePostUpdate(data);
             } catch (e) {
                 console.error(e);
@@ -113,7 +113,7 @@ const MyPostsPage = () => {
         <div className="home-page">
             {editingPost && (
                 <EditPostModal
-                    key={editingPost._id}
+                    key={editingPost.id}
                     post={editingPost}
                     onClose={() => setEditingPost(null)}
                     onUpdate={handlePostUpdate}
@@ -131,7 +131,6 @@ const MyPostsPage = () => {
                         <tr>
                             <th>Status</th>
                             <th><SortHeader label="Card" column="cardName" /></th>
-                            <th><SortHeader label="Name" column="cardName" /></th>
                             <th><SortHeader label="Type" column="postType" /></th>
                             <th><SortHeader label="Price" column="price" /></th>
                             <th><SortHeader label="Condition" column="condition" /></th>
@@ -142,7 +141,7 @@ const MyPostsPage = () => {
                     <tbody>
                         {sortedPosts.length > 0 ? (
                             sortedPosts.map((post) => (
-                                <tr key={post._id} className={!post.isActive ? 'is-inactive' : ''}>
+                                <tr key={post.id} className={!post.isActive ? 'is-inactive' : ''}>
                                     <td>
                                         {post.isActive ? (
                                             <span className="status-badge status-badge--active">Active</span>
@@ -156,8 +155,8 @@ const MyPostsPage = () => {
                                             alt={post.cardName}
                                             loading="lazy"
                                         />
+                                        <div className="card-name">{post.cardName}</div>
                                     </td>
-                                    <td>{post.cardName}</td>
                                     <td className="capitalize">{post.postType}</td>
                                     <td>
                                         <div className="price-cell">
@@ -180,14 +179,14 @@ const MyPostsPage = () => {
                                             >
                                                 {post.isActive ? 'Complete' : 'Re-list'}
                                             </button>
-                                            <button className="btn btn--danger" onClick={() => handleDelete(post._id)}>Delete</button>
+                                            <button className="btn btn--danger" onClick={() => handleDelete(post.id)}>Delete</button>
                                         </div>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="8" className="table-cell-empty">You have not created any posts yet.</td>
+                                <td colSpan="7" className="table-cell-empty">You have not created any posts yet.</td>
                             </tr>
                         )}
                     </tbody>
