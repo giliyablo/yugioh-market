@@ -6,7 +6,7 @@ const { processJob } = require('./jobs');
 
 // --- Initialize Express App ---
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 4000;
 
 // --- Middleware ---
 app.use(cors());
@@ -37,6 +37,7 @@ try {
     process.exit(1);
 }
 
+// Get the Firestore instance AFTER initializing
 const db = admin.firestore();
 
 /**
@@ -62,8 +63,8 @@ function listenForJobs() {
                 // Mark the job as 'running' to prevent other workers from picking it up
                 jobDoc.ref.update({ status: 'running', startTime: admin.firestore.FieldValue.serverTimestamp() })
                     .then(() => {
-                        // Execute the job
-                        return processJob(jobData);
+                        // Execute the job, passing the db instance
+                        return processJob(db, jobData);
                     })
                     .then(() => {
                         // Mark the job as 'completed'
@@ -83,7 +84,6 @@ function listenForJobs() {
         });
     }, err => {
         console.error("FATAL: Error listening to jobs collection:", err);
-        // In a real production environment, you might want to restart the process here.
     });
 }
 

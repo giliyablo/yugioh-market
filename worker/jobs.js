@@ -2,15 +2,13 @@ const puppeteer = require('puppeteer');
 const { getMarketPrice, getCardImageFromYugipedia } = require('./cardData');
 const admin = require('firebase-admin');
 
-// Get Firestore instance
-const db = admin.firestore();
-
 /**
  * Processes a single job from the Firestore queue.
  * Fetches price and image for a card and updates the corresponding post.
+ * @param {admin.firestore.Firestore} db The initialized Firestore database instance.
  * @param {object} jobData The data from the Firestore job document.
  */
-const processJob = async (jobData) => {
+const processJob = async (db, jobData) => {
     const { postId, cardName } = jobData;
 
     if (!postId || !cardName) {
