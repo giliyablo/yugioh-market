@@ -174,6 +174,17 @@ export const usersService = {
       console.error('Error updating user:', error);
       throw error;
     }
+  },
+
+  isUserAdmin: async (userId) => {
+    if (!userId) return false;
+    try {
+      const adminDoc = await getDoc(doc(db, 'admins', userId));
+      return adminDoc.exists();
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
+    }
   }
 };
 

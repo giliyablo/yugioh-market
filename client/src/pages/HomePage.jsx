@@ -19,7 +19,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState(20);
     const [totalPages, setTotalPages] = useState(1);
-    const { currentUser } = useAuth();
+    const { currentUser, isAdmin } = useAuth();
     const [editingPost, setEditingPost] = useState(null);
 
     useEffect(() => {
@@ -174,7 +174,7 @@ const HomePage = ({ isCreateModalOpen, onCloseCreateModal }) => {
                                     <td>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '-'}</td>
                                     <td>
                                         <div className="actions-cell">
-                                            {currentUser && post.user?.uid === currentUser.uid ? (
+                                            {currentUser && (post.user?.uid === currentUser.uid || isAdmin) ? (
                                                 <>
                                                     <button className="btn btn--secondary" onClick={() => setEditingPost(post)}>Edit</button>
                                                     <button className="btn btn--success" onClick={() => handleCompletePost(post)}>Complete</button>

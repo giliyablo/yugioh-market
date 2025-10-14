@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider, facebookProvider } from '../services/firebase';
+import { usersService } from '../services/firestoreService'; // Import usersService
 import LoadingSpinner from '../components/LoadingSpinner';
 
 
@@ -12,6 +13,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false); // Add state for admin status
   const [loading, setLoading] = useState(true);
 
   const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
@@ -19,8 +21,15 @@ export const AuthProvider = ({ children }) => {
   const logout = () => signOut(auth);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      if (user) {
+        // If user is logged in, check their admin status
+        const adminStatus = await usersService.isUserAdmin(user.uid);
+        setIsAdmin(adminStatus);
+      } else {
+        setIsAdmin(false);
+      }
       setLoading(false);
     });
 
@@ -29,6 +38,7 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     currentUser,
+    isAdmin, // Expose admin status
     loginWithGoogle,
     loginWithFacebook,
     logout,
