@@ -29,7 +29,7 @@ services:
   client:
     build:
       context: ./client
-      dockerfile: Dockerfile.robust
+      dockerfile: Dockerfile
     container_name: tcg-market-client
     ports:
       - "3000:3000"
