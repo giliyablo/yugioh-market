@@ -1,55 +1,68 @@
+version: '3.8'
 
 services:
   # Backend API Server
   server:
     build:
-      context: ./server
+      context: ../server
       dockerfile: Dockerfile
     container_name: tcg-market-server
     ports:
       - "5000:5000"
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=development
       - PORT=5000
       - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON}
     volumes:
-      - ./server:/app
+      - ../server:/app
       - /app/node_modules
     networks:
       - tcg-network
     healthcheck:
-      test: ["CMD", "node", "healthcheck.js"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://server:5000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
 
+  # Worker Service
+  worker:
+    build:
+      context: ../worker
+      dockerfile: Dockerfile
+    container_name: tcg-market-worker
+    depends_on:
+      - server
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON}
+    volumes:
+      - ../worker:/app
+      - /app/node_modules
+    networks:
+      - tcg-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://worker:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
   # Frontend Client
   client:
     build:
-      context: ./client
+      context: ../client
       dockerfile: Dockerfile
     container_name: tcg-market-client
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_URL=http://localhost:5000/api
+      - VITE_API_URL=http://tcg-market-server:5000/api
     depends_on:
-      server:
-        condition: service_healthy
+      - server
     networks:
       - tcg-network
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 networks:
   tcg-network:
     driver: bridge
-
-# volumes:
-#   node_modules_server:
-#   node_modules_client:
+    

@@ -21,6 +21,6 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 COPY . .
 
 # Expose the port for the health check server
-EXPOSE 8080
+EXPOSE 5000
 
 CMD ["node", "index.js"]
