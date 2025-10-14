@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { sseHandler } = require('../services/sse');
 const {
     getAllPosts,
     createPost,
@@ -7,9 +8,7 @@ const {
     createPostsFromList,
     updatePost,
     deletePost,
-    getMyPosts,
-    getCardImageFromWiki,
-    getCardPriceFromTCG
+    getMyPosts
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -17,6 +16,11 @@ const authMiddleware = require('../middleware/authMiddleware');
 // @desc    Get all active posts
 // @access  Public
 router.get('/', getAllPosts);
+
+// @route   GET /api/posts/events
+// @desc    SSE stream for post updates
+// @access  Public (client should authenticate requests as needed)
+router.get('/events', sseHandler);
 
 // @route   GET /api/posts/my-posts
 // @desc    Get posts for the currently authenticated user
@@ -39,16 +43,6 @@ router.post('/batch', authMiddleware, createBatchPosts);
 // @access  Private (Requires authentication)
 router.post('/batch-list', authMiddleware, createPostsFromList);
 
-// @route   POST /api/posts/fetch-image
-// @desc    Returns an image URL for a given card name by scraping
-// @access  Private
-router.post('/fetch-image', authMiddleware, getCardImageFromWiki);
-
-// @route   POST /api/posts/fetch-price
-// @desc    Returns a market price for a given card name by scraping
-// @access  Private
-router.post('/fetch-price', authMiddleware, getCardPriceFromTCG);
-
 // @route   PUT /api/posts/:id
 // @desc    Update a post (owner only)
 // @access  Private
@@ -60,4 +54,3 @@ router.put('/:id', authMiddleware, updatePost);
 router.delete('/:id', authMiddleware, deletePost);
 
 module.exports = router;
-
