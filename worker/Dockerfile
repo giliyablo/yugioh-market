@@ -19,4 +19,8 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 COPY . .
+
+# Expose the port for the health check server
+EXPOSE 8080
+
 CMD ["node", "index.js"]

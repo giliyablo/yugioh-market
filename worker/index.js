@@ -1,6 +1,22 @@
 require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
 const admin = require('firebase-admin');
 const { processJob } = require('./jobs');
+
+// --- Initialize Express App ---
+const app = express();
+const PORT = process.env.PORT || 8080;
+
+// --- Middleware ---
+app.use(cors());
+app.use(express.json());
+
+// --- Health Check Endpoint ---
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 
 // --- Initialize Firebase Admin SDK ---
 try {
@@ -33,6 +49,7 @@ function listenForJobs() {
         .where('status', '==', 'pending')
         .orderBy('createdAt');
 
+    // Listen for new documents
     query.onSnapshot(snapshot => {
         snapshot.docChanges().forEach(change => {
             if (change.type === 'added') {
@@ -70,5 +87,9 @@ function listenForJobs() {
     });
 }
 
-// Start the worker
-listenForJobs();
+// --- Start Server and Job Listener ---
+app.listen(PORT, () => {
+    console.log(`Worker server is running on port ${PORT}`);
+    // Start listening for jobs only after the server is up
+    listenForJobs();
+});
