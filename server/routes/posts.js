@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const { sseHandler } = require('../services/sse');
 const {
     getAllPosts,
     createPost,
@@ -18,11 +17,6 @@ const authMiddleware = require('../middleware/authMiddleware');
 // @desc    Get all active posts
 // @access  Public
 router.get('/', getAllPosts);
-
-// @route   GET /api/posts/events
-// @desc    SSE stream for post updates
-// @access  Public (client should authenticate requests as needed)
-router.get('/events', sseHandler);
 
 // @route   GET /api/posts/my-posts
 // @desc    Get posts for the currently authenticated user

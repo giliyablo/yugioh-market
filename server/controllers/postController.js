@@ -1,12 +1,21 @@
-const axios = require('axios');
 const formidable = require('formidable');
-const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
-const { enqueue } = require('../services/jobs');
-const { getMarketPrice, getCardImageFromYugipedia } = require('../services/cardData');
 const { postsService } = require('../services/firestoreService');
+const admin = require('firebase-admin'); // Ensure firebase-admin is imported
 
-// Helpers moved to services/cardData to avoid circular deps
+// This function now creates a job document in Firestore.
+const enqueue = async (jobData) => {
+    try {
+        const job = {
+            ...jobData,
+            status: 'pending', // Initial status
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+        await admin.firestore().collection('jobs').add(job);
+        console.log('Successfully enqueued job for card:', jobData.cardName);
+    } catch (error) {
+        console.error('Error enqueuing job to Firestore:', error);
+    }
+};
 
 
 // --- Controller for GET /api/posts ---
@@ -27,21 +36,21 @@ exports.getAllPosts = async (req, res) => {
 
         // Get all posts from Firestore
         let allPosts = await postsService.getAllPosts();
-
+        
         // Filter by isActive
         allPosts = allPosts.filter(post => post.isActive !== false);
-
+        
         // Apply search filters
         if (q && typeof q === 'string') {
             const searchTerm = q.toLowerCase();
-            allPosts = allPosts.filter(post =>
+            allPosts = allPosts.filter(post => 
                 post.cardName && post.cardName.toLowerCase().includes(searchTerm)
             );
         }
-
+        
         if (user && typeof user === 'string') {
             const userTerm = user.toLowerCase();
-            allPosts = allPosts.filter(post =>
+            allPosts = allPosts.filter(post => 
                 (post.user && post.user.uid === user) ||
                 (post.user && post.user.displayName && post.user.displayName.toLowerCase().includes(userTerm))
             );
@@ -101,7 +110,7 @@ exports.createPost = async (req, res) => {
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
     }
-
+    
     // Do not fetch price synchronously; background job will enrich
     let finalPrice = (price === undefined || price === null || price === '') ? null : Number(price);
     let isApiPrice = false;
@@ -138,8 +147,8 @@ exports.createPost = async (req, res) => {
 
         const postId = await postsService.createPost(postData);
         const post = { id: postId, ...postData };
-
-        // Enqueue background enrichment
+        
+        // Enqueue background enrichment by creating a Firestore document
         enqueue({ postId: postId, cardName });
         res.status(201).json(post);
 
@@ -167,10 +176,10 @@ exports.updatePost = async (req, res) => {
         const { id } = req.params;
         const { uid } = req.user;
         const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
-
+        
         const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
-
+        
         const isAdmin = await postsService.isUserAdmin(uid);
         if (post.user?.uid !== uid && !isAdmin) {
             return res.status(403).json({ msg: 'Not authorized' });
@@ -203,7 +212,7 @@ exports.deletePost = async (req, res) => {
         const { uid } = req.user;
         const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
-
+        
         const isAdmin = await postsService.isUserAdmin(uid);
         if (post.user?.uid !== uid && !isAdmin) {
             return res.status(403).json({ msg: 'Not authorized' });
@@ -221,35 +230,22 @@ exports.deletePost = async (req, res) => {
 // This is a placeholder for a very complex feature.
 exports.createBatchPosts = async (req, res) => {
     const form = formidable({});
-
+    
     form.parse(req, (err, fields, files) => {
         if (err) {
             console.error('Error parsing form data:', err);
             return res.status(500).send('Error processing file upload.');
         }
 
-        // TODO: Implement the file processing logic here.
-        // 1. Identify the file type (PDF, image, TXT).
-        // 2. If image/PDF, send to a service like Google Cloud Vision AI to extract text.
-        // 3. Parse the extracted text or TXT file to get a list of card names.
-        // 4. For each card name:
-        //    a. Call getMarketPrice().
-        //    b. Create a new Post document.
-        //    c. Save it to the database using the same logic as createPost.
-        // 5. This should ideally be handled as a background job to avoid long request timeouts.
-
         console.log('Batch file received (implementation pending):', files.batchFile);
-        res.status(202).json({
-            msg: 'Batch upload received and is being processed. This feature is a work in progress.'
+        res.status(202).json({ 
+            msg: 'Batch upload received and is being processed. This feature is a work in progress.' 
         });
     });
 };
 
 // --- Controller for POST /api/posts/batch-list ---
-// Accepts a list of card names and creates posts. If priceMode === 'market',
-// fetch a price per card; if 'fixed', use provided fixedPrice; if 'none', leave empty.
 exports.createPostsFromList = async (req, res) => {
-    let browser = null;
     try {
         const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
         const displayName = name || userEmail || 'User';
@@ -260,21 +256,14 @@ exports.createPostsFromList = async (req, res) => {
         }
 
         const cardsToProcess = cardNames.map(s => String(s).trim()).filter(Boolean);
-        let pricesMap = new Map();
-
         const created = [];
+
         for (const cardName of cardsToProcess) {
-            let finalPrice;
+            let finalPrice = null;
             let isApiPrice = false;
 
             if (priceMode === 'fixed' && fixedPrice !== undefined) {
                 finalPrice = Number(fixedPrice);
-            } else if (priceMode === 'market') {
-                // Defer to background enrichment
-                finalPrice = null;
-                isApiPrice = false;
-            } else {
-                finalPrice = null;
             }
 
             const postData = {
@@ -292,6 +281,7 @@ exports.createPostsFromList = async (req, res) => {
                     lastError: null
                 }
             };
+
             const postId = await postsService.createPost(postData);
             const saved = { id: postId, ...postData };
             enqueue({ postId: postId, cardName });
@@ -302,47 +292,5 @@ exports.createPostsFromList = async (req, res) => {
     } catch (err) {
         console.error("Error in createPostsFromList:", err.message);
         res.status(500).send('Server Error');
-    } finally {
-        // no-op
-    }
-};
-
-
-// --- Web Scraper for Card Image ---
-exports.getCardImageFromWiki = async (req, res) => {
-    const { cardName } = req.body;
-    if (!cardName) {
-        return res.status(400).json({ message: 'Card name is required.' });
-    }
-
-    try {
-        const imageUrl = await getCardImageFromYugipedia(cardName);
-        if (imageUrl) {
-            res.status(200).json({ imageUrl });
-        } else {
-            res.status(404).json({ message: 'Image not found for the specified card.' });
-        }
-    } catch (error) {
-        // The helper function already logs the detailed error.
-        res.status(500).json({ message: 'An error occurred while fetching the card image.' });
-    }
-};
-
-// --- NEW FUNCTION: Web Scraper for Card Price ---
-exports.getCardPriceFromTCG = async (req, res) => {
-    const { cardName } = req.body;
-    if (!cardName) {
-        return res.status(400).json({ message: 'Card name is required.' });
-    }
-
-    try {
-        const result = await getMarketPrice(cardName); // Calls in single mode
-        if (result && result.price !== null) {
-            res.status(200).json({ price: result.price });
-        } else {
-            res.status(404).json({ message: 'Price not found for the specified card.' });
-        }
-    } catch (error) {
-        res.status(500).json({ message: 'An error occurred while fetching the card price.' });
     }
 };
