@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tcg-market-worker
+  namespace: tcg-market
+  labels:
+    app: tcg-market-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tcg-market-worker
+  template:
+    metadata:
+      labels:
+        app: tcg-market-worker
+    spec:
+      containers:
+      - name: worker
+        image: tcg-market-worker:latest # Assumes local image build
+        ports:
+        - containerPort: 4000
+        envFrom:
+        - configMapRef:
+            name: tcg-market-config
+        # In a real cluster, you'd use secrets for FIREBASE_SERVICE_ACCOUNT_JSON
+        # env:
+        # - name: FIREBASE_SERVICE_ACCOUNT_JSON
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: firebase-credentials
+        #       key: serviceAccount
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 45
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 4000
+          initialDelaySeconds: 15
+          periodSeconds: 10

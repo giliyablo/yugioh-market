@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: tcg-market-worker
+  namespace: tcg-market
+  labels:
+    app: tcg-market-worker
+spec:
+  selector:
+    app: tcg-market-worker
+  ports:
+  - port: 4000
+    targetPort: 4000
+    protocol: TCP
+  type: ClusterIP # No need to expose this service outside the cluster

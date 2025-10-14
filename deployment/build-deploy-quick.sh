@@ -7,6 +7,7 @@ PROJECT_ID="fourth-arena-474414-h6"
 REGION="us-central1"
 SERVER_SERVICE="tcg-marketplace-server"
 CLIENT_SERVICE="tcg-marketplace-client"
+WORKER_SERVICE="tcg-marketplace-worker" # <-- NEW
 REPO_URL="https://github.com/giliyablo/yugioh-market"
 GITHUB_REPO="giliyablo/yugioh-market"
 BRANCH="main"
@@ -16,10 +17,9 @@ CLIENT_DOMAIN=${CLIENT_DOMAIN:-"www.tcgsmarketplace.com"}
 
 echo "🚀 Quick deployment to Google Cloud Run"
 
-# Build and deploy server
+# --- SERVER ---
 echo "🔨 Building server..."
-cd server
-docker build -t gcr.io/$PROJECT_ID/tcg-server:latest .
+docker build -t gcr.io/$PROJECT_ID/tcg-server:latest ./server
 docker push gcr.io/$PROJECT_ID/tcg-server:latest
 
 echo "🚀 Deploying server to Cloud Run..."
@@ -29,18 +29,34 @@ gcloud run deploy tcg-server \
   --platform managed \
   --allow-unauthenticated \
   --port 5000 \
-  --memory 2Gi \
-  --cpu 2
+  --memory 1Gi \
+  --cpu 1 \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
-
-# Get server URL
 SERVER_URL=$(gcloud run services describe tcg-server --region $REGION --format 'value(status.url)')
 echo "✅ Server deployed at: $SERVER_URL"
 
-# Build and deploy client
+# --- WORKER ---
+echo "🔨 Building worker..."
+docker build -t gcr.io/$PROJECT_ID/tcg-worker:latest ./worker
+docker push gcr.io/$PROJECT_ID/tcg-worker:latest
+
+echo "🚀 Deploying worker to Cloud Run..."
+gcloud run deploy tcg-worker \
+  --image gcr.io/$PROJECT_ID/tcg-worker:latest \
+  --region $REGION \
+  --platform managed \
+  --no-allow-unauthenticated \
+  --port 4000 \
+  --memory 2Gi \
+  --cpu 2 \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
+
+echo "✅ Worker deployed successfully."
+
+# --- CLIENT ---
 echo "🔨 Building client..."
-cd ../client
-docker build -t gcr.io/$PROJECT_ID/tcg-client:latest .
+docker build -t gcr.io/$PROJECT_ID/tcg-client:latest ./client
 docker push gcr.io/$PROJECT_ID/tcg-client:latest
 
 echo "🚀 Deploying client to Cloud Run..."
@@ -54,11 +70,6 @@ gcloud run deploy tcg-client \
   --cpu 1 \
   --set-env-vars VITE_API_URL=${SERVER_DOMAIN:+https://$SERVER_DOMAIN/api}${SERVER_DOMAIN:-$SERVER_URL/api}
 
-# Get server URL
-SERVER_URL=$(gcloud run services describe tcg-server --region $REGION --format 'value(status.url)')
-echo "✅ Server deployed at: $SERVER_URL"
-
-# Get client URL
 CLIENT_URL=$(gcloud run services describe tcg-client --region $REGION --format 'value(status.url)')
 echo "✅ Client deployed at: $CLIENT_URL"
 

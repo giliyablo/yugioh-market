@@ -20,6 +20,7 @@ fi
 echo "🐳 Building Docker images..."
 docker build -t tcg-market-server:latest -f server/Dockerfile server/
 docker build -t tcg-market-client:latest -f client/Dockerfile client/
+docker build -t tcg-market-worker:latest -f worker/Dockerfile worker/ # <-- NEW
 
 # Apply Kubernetes manifests
 echo "📦 Applying Kubernetes manifests..."
@@ -34,6 +35,10 @@ kubectl apply -f deployment/k8s/configmap.yaml
 kubectl apply -f deployment/k8s/server-deployment.yaml
 kubectl apply -f deployment/k8s/server-service.yaml
 
+# Apply worker resources
+kubectl apply -f deployment/k8s/worker-deployment.yaml
+kubectl apply -f deployment/k8s/worker-service.yaml
+
 # Apply client resources
 kubectl apply -f deployment/k8s/client-deployment.yaml
 kubectl apply -f deployment/k8s/client-service.yaml
@@ -44,24 +49,8 @@ kubectl apply -f deployment/k8s/ingress.yaml
 # Wait for deployments to be ready
 echo "⏳ Waiting for deployments to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/tcg-market-server -n tcg-market
+kubectl wait --for=condition=available --timeout=300s deployment/tcg-market-worker -n tcg-market
 kubectl wait --for=condition=available --timeout=300s deployment/tcg-market-client -n tcg-market
 
 # Get service information
 echo "✅ Deployment completed!"
-echo ""
-echo "📊 Service Status:"
-kubectl get pods -n tcg-market
-kubectl get services -n tcg-market
-kubectl get ingress -n tcg-market
-
-echo ""
-echo "🌍 Access your application:"
-echo "   Local: http://tcg-market.local (add to /etc/hosts)"
-echo "   Or use port-forward: kubectl port-forward -n tcg-market svc/tcg-market-client 5000:5000"
-echo ""
-echo "📊 View logs:"
-echo "   kubectl logs -f deployment/tcg-market-server -n tcg-market"
-echo "   kubectl logs -f deployment/tcg-market-client -n tcg-market"
-echo ""
-echo "🛑 Delete deployment:"
-echo "   kubectl delete namespace tcg-market"
