@@ -50,7 +50,7 @@ else
 fi
 
 # Check client health
-if curl -f http://localhost:5000/health > /dev/null 2>&1; then
+if curl -f http://localhost:3000/health > /dev/null 2>&1; then
     echo "✅ Client is healthy"
 else
     echo "❌ Client is not responding"
@@ -59,7 +59,7 @@ else
 fi
 
 echo "✅ Local development environment is ready!"
-echo "🌍 Client: http://localhost:5000"
+echo "🌍 Client: http://localhost:3000"
 echo "🔗 API: http://localhost:5000"
 echo ""
 echo "📊 View logs:"

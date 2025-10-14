@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogIn, LogOut, PlusCircle, List, Search } from 'lucide-react';
-import './NavBar.css';
+import './Navbar.css';
 import '../pages/HomePage.css';
 
 const Navbar = ({ onOpenCreateModal }) => {
