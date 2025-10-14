@@ -13,200 +13,133 @@ provider "google" {
   region  = var.region
 }
 
-# Enable required APIs
+# --- GCP Service APIs ---
+# Enables the APIs required for Cloud Run, Cloud Build, and Secret Manager.
 resource "google_project_service" "apis" {
   for_each = toset([
     "run.googleapis.com",
     "cloudbuild.googleapis.com",
-    "containerregistry.googleapis.com",
     "firestore.googleapis.com",
-    "firebase.googleapis.com",
-    "storage.googleapis.com",
-    "compute.googleapis.com"
+    "iam.googleapis.com",
+    "secretmanager.googleapis.com"
   ])
 
-  service = each.value
+  service            = each.value
   disable_on_destroy = false
 }
 
-# Cloud Storage bucket for static assets
-resource "google_storage_bucket" "static_assets" {
-  name          = "${var.project_id}-static-assets"
-  location      = "US"
-  force_destroy = true
-
-  website {
-    main_page_suffix = "index.html"
-    not_found_page   = "404.html"
-  }
-
-  cors {
-    origin          = ["*"]
-    method          = ["GET", "HEAD", "PUT", "POST", "DELETE"]
-    response_header = ["*"]
-    max_age_seconds = 3600
-  }
+# --- Service Account ---
+# A dedicated service account for the Cloud Run services to interact with other GCP services.
+resource "google_service_account" "cloud_run_sa" {
+  account_id   = "tcg-run-sa"
+  display_name = "TCG Marketplace Cloud Run Service Account"
+  project      = var.project_id
 }
 
-# Cloud Storage bucket for uploads
-resource "google_storage_bucket" "uploads" {
-  name          = "${var.project_id}-uploads"
-  location      = "US"
-  force_destroy = true
-
-  cors {
-    origin          = ["*"]
-    method          = ["GET", "HEAD", "PUT", "POST", "DELETE"]
-    response_header = ["*"]
-    max_age_seconds = 3600
-  }
-}
-
-# IAM binding for Cloud Run service account
-resource "google_project_iam_member" "cloud_run_firestore" {
+# Grant the service account permissions to access Firestore.
+resource "google_project_iam_member" "cloud_run_firestore_access" {
   project = var.project_id
   role    = "roles/datastore.user"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+  member  = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-resource "google_project_iam_member" "cloud_run_storage" {
-  project = var.project_id
-  role    = "roles/storage.objectAdmin"
-  member  = "serviceAccount:${google_service_account.cloud_run.email}"
-}
-
-# Service account for Cloud Run
-resource "google_service_account" "cloud_run" {
-  account_id   = "TCG-marketplace-run"
-  display_name = "TCG Marketplace Cloud Run Service Account"
-}
-
-# Cloud Run service
-resource "google_cloud_run_v2_service" "tcg_marketplace" {
-  name     = "TCG-marketplace"
+# --- Cloud Run Service: Server ---
+resource "google_cloud_run_v2_service" "server" {
+  name     = var.server_service_name
   location = var.region
+  project  = var.project_id
 
   template {
-    service_account = google_service_account.cloud_run.email
-    
+    service_account = google_service_account.cloud_run_sa.email
     containers {
-      image = "gcr.io/${var.project_id}/tcg-marketplace:latest"
-      
-      ports {
-        container_port = 5000
-      }
-
+      image = "gcr.io/${var.project_id}/${var.server_service_name}:latest"
+      ports { container_port = 5000 }
       env {
         name  = "NODE_ENV"
         value = "production"
       }
-
-      env {
-        name  = "PORT"
-        value = "5000"
-      }
-
       resources {
-        limits = {
-          cpu    = "2"
-          memory = "2Gi"
-        }
-        cpu_idle = true
-        startup_cpu_boost = true
+        limits = { cpu = "1", memory = "1Gi" }
       }
-
       startup_probe {
-        http_get {
-          path = "/test-firestore"
-          port = 5000
-        }
-        initial_delay_seconds = 10
-        timeout_seconds = 3
-        period_seconds = 3
-        failure_threshold = 1
+        http_get { path = "/api/health", port = 5000 }
       }
-
-      liveness_probe {
-        http_get {
-          path = "/test-firestore"
-          port = 5000
-        }
-        initial_delay_seconds = 30
-        timeout_seconds = 3
-        period_seconds = 10
-        failure_threshold = 3
-      }
-    }
-
-    scaling {
-      min_instance_count = 1
-      max_instance_count = 10
     }
   }
-
   depends_on = [google_project_service.apis]
 }
 
-# Allow unauthenticated access to Cloud Run
-resource "google_cloud_run_v2_service_iam_member" "public_access" {
-  location = google_cloud_run_v2_service.tcg_marketplace.location
-  name     = google_cloud_run_v2_service.tcg_marketplace.name
+# Allow public access to the server service.
+resource "google_cloud_run_v2_service_iam_member" "server_public_access" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.server.location
+  name     = google_cloud_run_v2_service.server.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
-# Load Balancer
-resource "google_compute_global_address" "default" {
-  name = "tcg-marketplace-ip"
-}
+# --- Cloud Run Service: Worker ---
+resource "google_cloud_run_v2_service" "worker" {
+  name     = var.worker_service_name
+  location = var.region
+  project  = var.project_id
 
-resource "google_compute_url_map" "default" {
-  name            = "tcg-marketplace-lb"
-  default_service = google_compute_backend_service.default.id
-}
-
-resource "google_compute_backend_service" "default" {
-  name        = "tcg-marketplace-backend"
-  protocol    = "HTTP"
-  port_name   = "http"
-  timeout_sec = 30
-
-  backend {
-    group = google_compute_region_network_endpoint_group.cloudrun_neg.id
+  template {
+    service_account = google_service_account.cloud_run_sa.email
+    containers {
+      image = "gcr.io/${var.project_id}/${var.worker_service_name}:latest"
+      ports { container_port = 4000 }
+      env {
+        name  = "NODE_ENV"
+        value = "production"
+      }
+      resources {
+        limits = { cpu = "2", memory = "2Gi" }
+      }
+      startup_probe {
+        http_get { path = "/health", port = 4000 }
+      }
+    }
   }
+  depends_on = [google_project_service.apis]
 }
+# Note: No public access IAM member for the worker. It is not publicly invokable.
 
-resource "google_compute_region_network_endpoint_group" "cloudrun_neg" {
-  name                  = "tcg-marketplace-neg"
-  network_endpoint_type = "SERVERLESS"
-  region                = var.region
+# --- Cloud Run Service: Client ---
+resource "google_cloud_run_v2_service" "client" {
+  name     = var.client_service_name
+  location = var.region
+  project  = var.project_id
 
-  cloud_run {
-    service = google_cloud_run_v2_service.tcg_marketplace.name
+  template {
+    service_account = google_service_account.cloud_run_sa.email
+    containers {
+      image = "gcr.io/${var.project_id}/${var.client_service_name}:latest"
+      ports { container_port = 3000 }
+      env {
+        name  = "VITE_API_URL"
+        value = "${google_cloud_run_v2_service.server.uri}/api"
+      }
+      resources {
+        limits = { cpu = "1", memory = "1Gi" }
+      }
+      startup_probe {
+        # The client is a static site, so a probe to the root path is sufficient.
+        http_get { path = "/", port = 3000 }
+      }
+    }
   }
+  depends_on = [
+    google_project_service.apis,
+    google_cloud_run_v2_service.server # Ensure server is created first to get its URL
+  ]
 }
 
-resource "google_compute_global_forwarding_rule" "default" {
-  name       = "tcg-marketplace-forwarding-rule"
-  target     = google_compute_target_http_proxy.default.id
-  port_range = "5000"
-  ip_address = google_compute_global_address.default.id
-}
-
-resource "google_compute_target_http_proxy" "default" {
-  name    = "tcg-marketplace-proxy"
-  url_map = google_compute_url_map.default.id
-}
-
-# Outputs
-output "cloud_run_url" {
-  value = google_cloud_run_v2_service.tcg_marketplace.uri
-}
-
-output "load_balancer_ip" {
-  value = google_compute_global_address.default.address
-}
-
-output "static_assets_bucket" {
-  value = google_storage_bucket.static_assets.name
+# Allow public access to the client service.
+resource "google_cloud_run_v2_service_iam_member" "client_public_access" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.client.location
+  name     = google_cloud_run_v2_service.client.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
