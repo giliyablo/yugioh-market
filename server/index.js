@@ -27,7 +27,6 @@ try {
             console.warn("⚠️  No Firebase credentials found - running in development mode");
             console.warn("⚠️  Authentication and database features will not work");
             console.warn("⚠️  To enable full functionality, set FIREBASE_SERVICE_ACCOUNT_JSON");
-            // Don't exit, continue with mock db
         }
     } else {
         console.log("Firebase Admin SDK already initialized");
@@ -38,7 +37,6 @@ try {
     if (error.message.includes('JSON')) {
         console.warn("⚠️  Invalid JSON in FIREBASE_SERVICE_ACCOUNT_JSON. Running without Firebase.");
     }
-    // Don't exit, continue with mock db
 }
 
 // --- Initialize Firestore ---
@@ -68,19 +66,14 @@ app.use(cors()); // Allows requests from your frontend
 app.use(express.json()); // Parses incoming JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parses URL-encoded bodies
 
-// Serve static files from the built client
-app.use(express.static('public'));
-
-// --- Database Connection ---
-// MongoDB connection removed - now using Firestore
-
 // --- API Routes ---
-// All routes related to posts will be prefixed with /api/posts
-app.use('/api', require('./routes/posts'));
+// All routes related to posts will be prefixed with /api
+app.use('/api/posts', require('./routes/posts'));
 
 // --- Root Route ---
+// This is now just a simple health/status check for the root.
 app.get('/', (req, res) => {
-    res.sendFile('index.html', { root: 'public' });
+    res.status(200).send('TCG Marketplace Server is running.');
 });
 
 // --- API Health Check ---
@@ -92,7 +85,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// --- Cloud Run Health Check ---
+// --- Cloud Run Health Check (if needed, though /api/health is better) ---
 app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
@@ -100,9 +93,10 @@ app.get('/health', (req, res) => {
 // --- Test Firestore Connection ---
 app.get('/test-firestore', async (req, res) => {
     try {
+        if (!db) throw new Error('Firestore not initialized');
         // Test Firestore connection by trying to read from a collection
         const testCollection = db.collection('_test');
-        const snapshot = await testCollection.limit(1).get();
+        await testCollection.limit(1).get();
         res.json({ 
             status: 'success', 
             message: 'Firestore connection successful',
