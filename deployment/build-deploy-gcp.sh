@@ -126,10 +126,6 @@ else
     echo "⏭️  Skipping client deployment (already completed)"
 fi
 
-# Get client URL
-CLIENT_URL=$(gcloud run services describe tcg-client --region $REGION --format 'value(status.url)')
-echo "✅ Client deployed at: $CLIENT_URL"
-
 echo "✅ Deployment complete!"
 echo "🌍 Your application is live at: ${CLIENT_DOMAIN:-$CLIENT_URL}"
 echo "🔗 API server: ${SERVER_DOMAIN:-$SERVER_URL}"
