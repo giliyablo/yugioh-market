@@ -52,8 +52,8 @@ gcloud run deploy $SERVER_SERVICE \
   --port 5000 \
   --memory 1Gi \
   --cpu 1 \
-  --set-env-vars NODE_ENV=production
-  # NOTE: Ensure FIREBASE_SERVICE_ACCOUNT_JSON is set as a secret in the Cloud Run console
+  --set-env-vars NODE_ENV=production \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
 SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
 echo "🔗 Server deployed at: $SERVER_URL"
@@ -71,8 +71,8 @@ gcloud run deploy $WORKER_SERVICE \
   --port 5000 \
   --memory 2Gi \
   --cpu 2 \
-  --set-env-vars NODE_ENV=production
-  # NOTE: Ensure FIREBASE_SERVICE_ACCOUNT_JSON is set as a secret in the Cloud Run console
+  --set-env-vars NODE_ENV=production \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
 echo "🔗 Worker deployed successfully."
 
