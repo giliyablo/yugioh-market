@@ -11,6 +11,9 @@ env:
   REGION: us-central1
   SERVER_SERVICE: tcg-marketplace-server
   CLIENT_SERVICE: tcg-marketplace-client
+  # Optional custom domains. Configure in repo/environment secrets if used.
+  SERVER_DOMAIN: ${{ secrets.SERVER_DOMAIN }}
+  CLIENT_DOMAIN: ${{ secrets.CLIENT_DOMAIN }}
 
 jobs:
   # Build and test
@@ -69,24 +72,25 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Configure Docker for GCR
-        run: gcloud auth configure-docker
+      - name: Enable required GCP APIs
+        run: |
+          gcloud services enable \
+            run.googleapis.com \
+            cloudbuild.googleapis.com \
+            containerregistry.googleapis.com \
+            firestore.googleapis.com \
+            storage.googleapis.com \
+            compute.googleapis.com
 
       - name: Build and push server image
         run: |
           cd server
-          docker build -t gcr.io/$PROJECT_ID/$SERVER_SERVICE:$GITHUB_SHA .
-          docker build -t gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest .
-          docker push gcr.io/$PROJECT_ID/$SERVER_SERVICE:$GITHUB_SHA
-          docker push gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest
+          gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest .
 
       - name: Build and push client image
         run: |
           cd client
-          docker build -t gcr.io/$PROJECT_ID/$CLIENT_SERVICE:$GITHUB_SHA .
-          docker build -t gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest .
-          docker push gcr.io/$PROJECT_ID/$CLIENT_SERVICE:$GITHUB_SHA
-          docker push gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest
+          gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest .
 
   # Deploy to Cloud Run
   deploy-server:
@@ -106,7 +110,7 @@ jobs:
       - name: Deploy server to Cloud Run
         run: |
           gcloud run deploy $SERVER_SERVICE \
-            --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:$GITHUB_SHA \
+            --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
@@ -138,9 +142,16 @@ jobs:
           project_id: ${{ env.PROJECT_ID }}
 
       - name: Deploy client to Cloud Run
+        env:
+          SERVER_URL: ${{ needs.deploy-server.outputs.SERVER_URL }}
         run: |
+          if [ -n "$SERVER_DOMAIN" ]; then
+            API_URL="https://$SERVER_DOMAIN/api"
+          else
+            API_URL="$SERVER_URL/api"
+          fi
           gcloud run deploy $CLIENT_SERVICE \
-            --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:$GITHUB_SHA \
+            --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
             --platform managed \
             --region $REGION \
             --allow-unauthenticated \
@@ -150,13 +161,13 @@ jobs:
             --min-instances 1 \
             --max-instances 5 \
             --timeout 3600 \
-            --set-env-vars VITE_API_URL=${{ needs.deploy-server.outputs.SERVER_URL }}/api
+            --set-env-vars VITE_API_URL=$API_URL
 
       - name: Get client URL
         run: |
           CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
           echo "Client deployed at: $CLIENT_URL"
-          echo "🌍 Your application is live at: $CLIENT_URL"
+          echo "🌍 Your application is live at: ${CLIENT_DOMAIN:-$CLIENT_URL}"
 
   # Deploy to Firebase Hosting (alternative)
   deploy-firebase:
