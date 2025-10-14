@@ -26,6 +26,7 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         // If user is logged in, check their admin status
         const adminStatus = await usersService.isUserAdmin(user.uid);
+        console.log('User UID:', user.uid, 'Is Admin:', adminStatus);
         setIsAdmin(adminStatus);
       } else {
         setIsAdmin(false);
