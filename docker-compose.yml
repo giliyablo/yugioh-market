@@ -28,6 +28,8 @@ services:
       context: ./worker
       dockerfile: Dockerfile
     container_name: tcg-market-worker
+    ports:
+      - "4000:4000"
     depends_on:
       - server
     environment:

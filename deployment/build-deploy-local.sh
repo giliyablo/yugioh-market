@@ -60,7 +60,8 @@ fi
 
 echo "✅ Local development environment is ready!"
 echo "🌍 Client: http://localhost:3000"
-echo "🔗 API: http://localhost:5000"
+echo "🔗 API: http://localhost:5000/health"
+echo "📊 worker: http://localhost:4000/health"
 echo ""
 echo "📊 View logs:"
 echo "   docker-compose logs -f"
