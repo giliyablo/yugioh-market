@@ -10,6 +10,25 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
     
     console.log(`Fetching price for "${cardName}" (attempt ${retryCount + 1}/${maxRetries + 1})`);
     
+    // Set a global timeout for the entire operation (2 minutes)
+    const operationTimeout = setTimeout(() => {
+        console.log(`Operation timeout reached for "${cardName}"`);
+    }, 120000);
+    
+    // Add process exit handler for cleanup
+    const cleanup = () => {
+        clearTimeout(operationTimeout);
+        if (page && !page.isClosed()) {
+            page.close().catch(() => {});
+        }
+        if (!browserInstance && browser && browser.isConnected()) {
+            browser.close().catch(() => {});
+        }
+    };
+    
+    process.on('SIGTERM', cleanup);
+    process.on('SIGINT', cleanup);
+    
     try {
         if (!browser) {
             let resolvedExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
@@ -63,10 +82,13 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                     '--disable-backgrounding-occluded-windows',
                     '--disable-renderer-backgrounding',
                     '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection'
+                    '--disable-ipc-flooding-protection',
+                    '--max_old_space_size=512', // Limit memory usage
+                    '--disable-extensions',
+                    '--disable-plugins'
                 ],
-                timeout: 60000, // Increase browser launch timeout to 60 seconds
-                protocolTimeout: 60000 // Increase protocol timeout to 60 seconds
+                timeout: 45000, // Reduce browser launch timeout to 45 seconds
+                protocolTimeout: 45000 // Reduce protocol timeout to 45 seconds
             };
             
             // Only set executablePath if we found one
@@ -78,12 +100,23 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
             browser = await puppeteer.launch(launchOptions);
         }
         page = await browser.newPage();
+        
+        // Set page timeout and add connection monitoring
+        page.setDefaultTimeout(30000);
+        
+        // Add error handlers for connection issues
+        page.on('error', (err) => {
+            console.log(`Page error: ${err.message}`);
+        });
+        
+        page.on('pageerror', (err) => {
+            console.log(`Page script error: ${err.message}`);
+        });
 
         const formattedCardName = encodeURIComponent(String(cardName).trim());
         const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
         
-        // Set page timeout and navigate with retry logic
-        page.setDefaultTimeout(30000);
+        // Navigate with retry logic
         await page.goto(searchUrl, { 
             waitUntil: 'networkidle2',
             timeout: 30000 
@@ -125,6 +158,18 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         return { cardName, price: null };
     } catch (error) {
         console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
+        
+        // Check if it's a connection error and handle accordingly
+        if (error.message.includes('Connection closed') || error.message.includes('Target closed') || error.message.includes('Protocol error')) {
+            console.log('Connection was closed, attempting recovery...');
+            // Don't try fallback if connection is already closed
+            if (retryCount < maxRetries) {
+                console.log(`Retrying price fetch for "${cardName}" in 2 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                return getMarketPrice(cardName, browserInstance, retryCount + 1);
+            }
+            return { cardName, price: null };
+        }
         
         // Try fallback approach with different search parameters
         try {
@@ -179,11 +224,32 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         
         return { cardName, price: null };
     } finally {
-        if (page) {
-            await page.close();
+        // Clear the operation timeout and remove event listeners
+        clearTimeout(operationTimeout);
+        process.removeListener('SIGTERM', cleanup);
+        process.removeListener('SIGINT', cleanup);
+        
+        // Safely close page and browser with proper error handling
+        try {
+            if (page) {
+                // Check if page is still connected before closing
+                if (!page.isClosed()) {
+                    await page.close();
+                }
+            }
+        } catch (closeError) {
+            console.log(`Page close warning: ${closeError.message}`);
         }
-        if (!browserInstance && browser) {
-            await browser.close();
+        
+        try {
+            if (!browserInstance && browser) {
+                // Check if browser is still connected before closing
+                if (browser.isConnected()) {
+                    await browser.close();
+                }
+            }
+        } catch (browserCloseError) {
+            console.log(`Browser close warning: ${browserCloseError.message}`);
         }
     }
 };
