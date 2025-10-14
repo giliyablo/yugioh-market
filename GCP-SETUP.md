@@ -1,220 +1,116 @@
-# Google Cloud Platform Setup Guide
+Google Cloud Platform Setup Guide
+This guide details how to set up your GCP project to host the TCG Marketplace application on Cloud Run. The architecture consists of three separate Cloud Run services.
 
-This guide will help you deploy your TCG Marketplace to Google Cloud Platform for a dynamic, scalable hosting solution.
+🚀 Quick Start with Scripts
+The fastest way to deploy is using the provided scripts. Ensure you have the Google Cloud SDK installed and authenticated.
 
-## 🚀 Quick Start
+# Authenticate with GCP
+gcloud auth login
+gcloud config set project fourth-arena-474414-h6
 
-### Prerequisites
+# Run the deployment script (builds on GCP)
+./deployment/build-deploy-gcp.sh all
 
-1. **Install Google Cloud CLI**
-   ```bash
-   # Windows (using Chocolatey)
-   choco install gcloudsdk
-   
-   # macOS (using Homebrew)
-   brew install google-cloud-sdk
-   
-   # Linux
-   curl https://sdk.cloud.google.com | bash
-   exec -l $SHELL
-   ```
+🔧 Manual GCP Deployment
+If you prefer to deploy manually, follow these steps.
 
-2. **Authenticate with Google Cloud**
-   ```bash
-   gcloud auth login
-   gcloud config set project fourth-arena-474414-h6
-   ```
+1. Enable APIs
+Enable the necessary APIs for your project.
 
-### Option 1: Quick Deploy (Recommended)
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable secretmanager.googleapis.com
+gcloud services enable iam.googleapis.com
 
-```bash
-# Run the deployment script
-./deploy-gcp.sh
-```
+2. Build and Push Images
+For each service (server, worker, client), build the image using Cloud Build and push it to Google Container Registry.
 
-### Option 2: Manual Deployment
+# Build the server image
+gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/tcg-marketplace-server:latest ./server
 
-1. **Enable APIs**
-   ```bash
-   gcloud services enable run.googleapis.com
-   gcloud services enable cloudbuild.googleapis.com
-   gcloud services enable containerregistry.googleapis.com
-   ```
+# Build the worker image
+gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/tcg-marketplace-worker:latest ./worker
 
-2. **Build and Deploy**
-   ```bash
-   # Build Docker image
-   gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest .
-   
-   # Deploy to Cloud Run
-   gcloud run deploy tcg-marketplace \
-     --image gcr.io/fourth-arena-474414-h6/tcg-marketplace:latest \
-     --platform managed \
-     --region me-west1 \
-     --allow-unauthenticated \
-     --port 5000 \
-     --memory 2Gi \
-     --cpu 2
-   ```
+# Build the client image
+gcloud builds submit --tag gcr.io/fourth-arena-474414-h6/tcg-marketplace-client:latest ./client
 
-## 🏗️ Infrastructure as Code (Terraform)
+3. Deploy to Cloud Run
+Deploy each image as a separate Cloud Run service.
 
-For production deployments with load balancers and advanced configuration:
+Deploy Server:
 
-1. **Install Terraform**
-   ```bash
-   # Windows (using Chocolatey)
-   choco install terraform
-   
-   # macOS (using Homebrew)
-   brew install terraform
-   ```
+gcloud run deploy tcg-marketplace-server \
+  --image gcr.io/fourth-arena-474414-h6/tcg-marketplace-server:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 5000 \
+  --memory 1Gi \
+  --cpu 1 \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
-2. **Deploy Infrastructure**
-   ```bash
-   cd terraform
-   terraform init
-   terraform plan
-   terraform apply
-   ```
+Deploy Worker: (Note: no public access)
 
-## 🔄 CI/CD with GitHub Actions
+gcloud run deploy tcg-marketplace-worker \
+  --image gcr.io/fourth-arena-474414-h6/tcg-marketplace-worker:latest \
+  --region us-central1 \
+  --platform managed \
+  --no-allow-unauthenticated \
+  --port 4000 \
+  --memory 2Gi \
+  --cpu 2 \
+  --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
-1. **Create Service Account**
-   ```bash
-   gcloud iam service-accounts create github-actions \
-     --display-name="GitHub Actions"
-   
-   gcloud projects add-iam-policy-binding fourth-arena-474414-h6 \
-     --member="serviceAccount:github-actions@fourth-arena-474414-h6.iam.gserviceaccount.com" \
-     --role="roles/run.admin"
-   
-   gcloud iam service-accounts keys create key.json \
-     --iam-account=github-actions@fourth-arena-474414-h6.iam.gserviceaccount.com
-   ```
+Deploy Client:
+First, get the server URL:
 
-2. **Add GitHub Secrets**
-   - Go to your GitHub repository settings
-   - Add secret: `GCP_SA_KEY` with the contents of `key.json`
+SERVER_URL=$(gcloud run services describe tcg-marketplace-server --region us-central1 --format 'value(status.url)')
 
-3. **Push to main branch** - automatic deployment will trigger
+Then, deploy the client with the server URL as an environment variable:
 
-## 📊 Monitoring and Management
+gcloud run deploy tcg-marketplace-client \
+  --image gcr.io/fourth-arena-474414-h6/tcg-marketplace-client:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --port 3000 \
+  --memory 1Gi \
+  --cpu 1 \
+  --set-env-vars "VITE_API_URL=$SERVER_URL/api"
 
-### Cloud Console URLs
+🏗️ Infrastructure as Code (Terraform)
+The terraform/ directory is configured to manage all three Cloud Run services and their associated IAM permissions.
 
-- **Cloud Run**: https://console.cloud.google.com/run
-- **Cloud Build**: https://console.cloud.google.com/cloud-build
-- **Firestore**: https://console.cloud.google.com/firestore
-- **Storage**: https://console.cloud.google.com/storage
+Initialize Terraform:
 
-### Useful Commands
+cd terraform
+terraform init
 
-```bash
-# View logs
-gcloud run services logs read tcg-marketplace --region me-west1
+Apply Configuration:
 
-# Update service
-gcloud run services update tcg-marketplace --region me-west1
+terraform apply
 
-# Scale service
-gcloud run services update tcg-marketplace \
-  --min-instances 2 \
-  --max-instances 20 \
-  --region me-west1
-```
+This will create the service account, enable APIs, and define all three Cloud Run services according to the specifications in main.tf.
 
-## 🔧 Configuration
+🔄 CI/CD with GitHub Actions
+To enable automated deployments from GitHub, you need a GCP service account with appropriate permissions.
 
-### Environment Variables
+Create Service Account Key: Follow the instructions in DEPLOYMENT.md to create a service account and export its key.
 
-Set these in Cloud Run or via Terraform:
+Add GitHub Secret: Add the content of the key file as a secret named GCP_SA_KEY in your GitHub repository settings.
 
-- `NODE_ENV=production`
-- `PORT=5000`
-- `FIREBASE_SERVICE_ACCOUNT_JSON` (for server-side Firestore access)
+Permissions: Ensure the service account has the following roles:
 
-### Custom Domain (Optional)
+Cloud Run Admin: To deploy and manage services.
 
-1. **Reserve static IP**
-   ```bash
-   gcloud compute addresses create tcg-marketplace-ip --global
-   ```
+Cloud Build Editor: To submit builds.
 
-2. **Configure DNS**
-   - Point your domain to the reserved IP
-   - Add SSL certificate in Cloud Console
+Service Account User: To act as the service account during deployments.
 
-## 💰 Cost Optimization
+📊 Monitoring
+Cloud Run Console: Visit the Cloud Run dashboard to view metrics and logs for each individual service (tcg-marketplace-server, tcg-marketplace-worker, tcg-marketplace-client).
 
-### Free Tier Limits
-- Cloud Run: 2 million requests/month
-- Firestore: 1GB storage, 50K reads/day
-- Cloud Build: 120 build-minutes/day
+CLI Logs:
 
-### Production Recommendations
-- Use Cloud CDN for static assets
-- Implement caching strategies
-- Monitor usage with Cloud Monitoring
-- Set up billing alerts
-
-## 🚨 Troubleshooting
-
-### Common Issues
-
-1. **Build Failures**
-   ```bash
-   # Check build logs
-   gcloud builds log --stream
-   ```
-
-2. **Service Won't Start**
-   ```bash
-   # Check service logs
-   gcloud run services logs read tcg-marketplace --region me-west1
-   ```
-
-3. **Permission Errors**
-   ```bash
-   # Verify service account permissions
-   gcloud projects get-iam-policy fourth-arena-474414-h6
-   ```
-
-### Health Checks
-
-- **API Health**: `https://your-service-url/api/health`
-- **Firestore Test**: `https://your-service-url/test-firestore`
-
-## 📈 Scaling
-
-### Automatic Scaling
-- Cloud Run automatically scales based on traffic
-- Configure min/max instances based on your needs
-
-### Manual Scaling
-```bash
-gcloud run services update tcg-marketplace \
-  --min-instances 5 \
-  --max-instances 100 \
-  --concurrency 1000 \
-  --region me-west1
-```
-
-## 🔒 Security
-
-### Best Practices
-- Use IAM roles with least privilege
-- Enable Cloud Security Command Center
-- Regular security updates
-- Monitor access logs
-
-### Firestore Security
-- Rules are already deployed via Firebase
-- Review and update as needed
-- Test rules in Firebase Console
-
-## 📞 Support
-
-- **Google Cloud Support**: https://cloud.google.com/support
-- **Documentation**: https://cloud.google.com/docs
-- **Community**: https://cloud.google.com/community
+# View logs for a specific service
+gcloud run services logs read tcg-marketplace-worker --region us-central1 --limit 100
