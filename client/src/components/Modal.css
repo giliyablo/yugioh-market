@@ -27,6 +27,8 @@
     max-width: 500px;
     position: relative;
     color: var(--color-text-primary);
+    max-height: 85vh; /* Prevent off-screen overflow on mobile */
+    overflow-y: auto;
 }
 
 /* Modal title */
@@ -65,4 +67,8 @@
     margin-top: 1.5rem;
     display: flex;
     justify-content: flex-end;
+}
+
+@media (max-width: 480px) {
+    .modal-content { padding: 1rem; }
 }

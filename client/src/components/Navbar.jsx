@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, LogOut, PlusCircle, List, Search } from 'lucide-react';
+import { LogIn, LogOut, PlusCircle, List, Search, Menu, X } from 'lucide-react';
 import './Navbar.css';
 import '../pages/HomePage.css';
 
@@ -12,6 +12,7 @@ const Navbar = ({ onOpenCreateModal }) => {
     const [cardQuery, setCardQuery] = useState(searchParams.get('q') || '');
     const [userQuery, setUserQuery] = useState(searchParams.get('user') || '');
     const [sort, setSort] = useState(searchParams.get('sort') || 'latest');
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     const handleCreatePost = () => {
         if (!currentUser) {
@@ -29,15 +30,24 @@ const Navbar = ({ onOpenCreateModal }) => {
         if (sort) params.set('sort', sort); else params.delete('sort');
         params.delete('page');
         navigate({ pathname: '/', search: params.toString() });
+        setIsMobileMenuOpen(false);
     };
 
     return (
-        <nav className="navbar">
+        <nav className={`navbar ${isMobileMenuOpen ? 'is-open' : ''}`}>
             <div className="navbar__left">
                 <Link to="/" className="navbar__logo">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/1/11/Yu-Gi-Oh%21_%28Logo%29.jpg" alt="Logo" className="navbar__logo-img" />
                     Market IL
                 </Link>
+                <button
+                    type="button"
+                    className="navbar__menu-toggle"
+                    aria-label="Toggle menu"
+                    onClick={() => setIsMobileMenuOpen(prev => !prev)}
+                >
+                    {isMobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+                </button>
             </div>
 
             <div className="navbar__center">
