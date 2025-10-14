@@ -22,7 +22,7 @@
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "__name__" }
+        { "fieldPath": "__name__", "order": "ASCENDING" }
       ]
     },
     {
