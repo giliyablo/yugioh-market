@@ -7,14 +7,14 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
     const maxRetries = 2;
     let browser = browserInstance;
     let page = null;
-    
+
     console.log(`Fetching price for "${cardName}" (attempt ${retryCount + 1}/${maxRetries + 1})`);
-    
+
     // Set a global timeout for the entire operation (2 minutes)
     const operationTimeout = setTimeout(() => {
         console.log(`Operation timeout reached for "${cardName}"`);
     }, 120000);
-    
+
     // Add process exit handler for cleanup
     const cleanup = () => {
         clearTimeout(operationTimeout);
@@ -25,14 +25,14 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
             browser.close().catch(() => {});
         }
     };
-    
+
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);
-    
+
     try {
         if (!browser) {
             let resolvedExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-            
+
             // Try to get Puppeteer's default executable path if not set
             if (!resolvedExecutablePath) {
                 try {
@@ -48,7 +48,7 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                         'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
                         'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
                     ];
-                    
+
                     // Try to find Chrome in common locations
                     const fs = require('fs');
                     for (const path of commonPaths) {
@@ -90,13 +90,13 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                 timeout: 45000, // Reduce browser launch timeout to 45 seconds
                 protocolTimeout: 45000 // Reduce protocol timeout to 45 seconds
             };
-            
+
             // Only set executablePath if we found one
             if (resolvedExecutablePath && resolvedExecutablePath !== 'undefined' && resolvedExecutablePath !== undefined) {
                 launchOptions.executablePath = resolvedExecutablePath;
                 console.log(`Using Chrome executable: ${resolvedExecutablePath}`);
             }
-            
+
             browser = await puppeteer.launch(launchOptions);
         }
         page = await browser.newPage();
@@ -135,36 +135,35 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
 
         // Set page timeout and add connection monitoring
         page.setDefaultTimeout(30000);
-        
+
         // Add error handlers for connection issues
         page.on('error', (err) => {
             console.log(`Page error: ${err.message}`);
         });
-        
+
         page.on('pageerror', (err) => {
             console.log(`Page script error: ${err.message}`);
         });
 
         const formattedCardName = encodeURIComponent(String(cardName).trim());
         const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
-        
+
         // Navigate with retry logic
-        await page.goto(searchUrl, { 
+        await page.goto(searchUrl, {
             waitUntil: 'networkidle2',
-            timeout: 30000 
+            timeout: 30000
         });
 
-        const priceSelector = 'span.product-card__market-price--value';
-        
         // Try multiple selectors in case the page structure changes
         const selectors = [
+            '#app > div > div > section.marketplace__content > section > section > section > section > section > div:nth-child(1) > div > div > div > div > a > section > section.product-card__market-price > section > span.product-card__market-price--value',
             'span.product-card__market-price--value',
             '.product-card__market-price--value',
             '[data-testid="market-price"]',
             '.market-price',
             '.price-value'
         ];
-        
+
         let priceElementText = null;
         for (const selector of selectors) {
             try {
@@ -176,11 +175,11 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                 continue;
             }
         }
-        
+
         if (!priceElementText) {
             throw new Error('No price element found with any selector');
         }
-        
+
         const price = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
 
         if (!isNaN(price)) {
@@ -190,7 +189,7 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         return { cardName, price: null };
     } catch (error) {
         console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
-        
+
         // Check if it's a connection error and handle accordingly
         if (error.message.includes('Connection closed') || error.message.includes('Target closed') || error.message.includes('Protocol error')) {
             console.log('Connection was closed, attempting recovery...');
@@ -202,23 +201,23 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
             }
             return { cardName, price: null };
         }
-        
+
         // Try fallback approach with different search parameters
         try {
             console.log(`Attempting fallback search for "${cardName}"...`);
-            
+
             // If page is null (browser failed to launch), try to create a new page
             if (!page && browser) {
                 page = await browser.newPage();
             }
-            
+
             if (!page) {
                 throw new Error('No browser page available for fallback');
             }
-            
+
             const fallbackUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${encodeURIComponent(cardName)}`;
             await page.goto(fallbackUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-            
+
             // Try to find any price element on the page
             const fallbackSelectors = [
                 '.price',
@@ -227,7 +226,7 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                 '.product-card__price',
                 '.search-result__price'
             ];
-            
+
             for (const selector of fallbackSelectors) {
                 try {
                     const elements = await page.$$(selector);
@@ -246,21 +245,21 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         } catch (fallbackError) {
             console.error(`Fallback also failed for "${cardName}":`, fallbackError.message);
         }
-        
+
         // Retry logic
         if (retryCount < maxRetries) {
             console.log(`Retrying price fetch for "${cardName}" in 2 seconds...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
             return getMarketPrice(cardName, browserInstance, retryCount + 1);
         }
-        
+
         return { cardName, price: null };
     } finally {
         // Clear the operation timeout and remove event listeners
         clearTimeout(operationTimeout);
         process.removeListener('SIGTERM', cleanup);
         process.removeListener('SIGINT', cleanup);
-        
+
         // Safely close page and browser with proper error handling
         try {
             if (page) {
@@ -272,7 +271,7 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         } catch (closeError) {
             console.log(`Page close warning: ${closeError.message}`);
         }
-        
+
         try {
             if (!browserInstance && browser) {
                 // Check if browser is still connected before closing
@@ -361,5 +360,3 @@ const getCardImageFromYugipedia = async (cardName) => {
 };
 
 module.exports = { getMarketPrice, getCardImageFromYugipedia };
-
-
