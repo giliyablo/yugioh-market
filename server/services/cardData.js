@@ -100,7 +100,39 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
             browser = await puppeteer.launch(launchOptions);
         }
         page = await browser.newPage();
-        
+
+        // Block media and heavy resources during price fetch to speed up and reduce bandwidth
+        try {
+            const blockedResourceTypes = new Set(['image', 'media', 'font', 'stylesheet']);
+            const blockedUrlPattern = /(doubleclick|googletagmanager|google-analytics|adservice|adsystem|banner|facebook\.(com|net)\/tr|optimizely|hotjar|mp4|webm|\.gif|\.webp|\.svg|\.png|\.jpe?g|\.ico)/i;
+
+            await page.route('**/*', (route) => {
+                const request = route.request();
+                const resourceType = request.resourceType();
+                const url = request.url();
+
+                if (blockedResourceTypes.has(resourceType) || blockedUrlPattern.test(url)) {
+                    return route.abort();
+                }
+                return route.continue();
+            });
+        } catch (_) {
+            // Fallback for environments without page.route (older Puppeteer)
+            try {
+                await page.setRequestInterception(true);
+                const blockedResourceTypes = new Set(['image', 'media', 'font', 'stylesheet']);
+                const blockedUrlPattern = /(doubleclick|googletagmanager|google-analytics|adservice|adsystem|banner|facebook\.(com|net)\/tr|optimizely|hotjar|mp4|webm|\.gif|\.webp|\.svg|\.png|\.jpe?g|\.ico)/i;
+                page.on('request', (request) => {
+                    const resourceType = request.resourceType();
+                    const url = request.url();
+                    if (blockedResourceTypes.has(resourceType) || blockedUrlPattern.test(url)) {
+                        return request.abort();
+                    }
+                    return request.continue();
+                });
+            } catch (__) { /* no-op */ }
+        }
+
         // Set page timeout and add connection monitoring
         page.setDefaultTimeout(30000);
         
