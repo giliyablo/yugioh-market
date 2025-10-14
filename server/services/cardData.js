@@ -7,15 +7,13 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
     const maxRetries = 2;
     let browser = browserInstance;
     let page = null;
-    
+
     console.log(`Fetching price for "${cardName}" (attempt ${retryCount + 1}/${maxRetries + 1})`);
-    
-    // Set a global timeout for the entire operation (2 minutes)
+
     const operationTimeout = setTimeout(() => {
         console.log(`Operation timeout reached for "${cardName}"`);
     }, 120000);
-    
-    // Add process exit handler for cleanup
+
     const cleanup = () => {
         clearTimeout(operationTimeout);
         if (page && !page.isClosed()) {
@@ -25,41 +23,32 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
             browser.close().catch(() => {});
         }
     };
-    
+
     process.on('SIGTERM', cleanup);
     process.on('SIGINT', cleanup);
-    
+
     try {
         if (!browser) {
             let resolvedExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-            
-            // Try to get Puppeteer's default executable path if not set
             if (!resolvedExecutablePath) {
                 try {
                     resolvedExecutablePath = puppeteer.executablePath();
                 } catch (_) {
-                    // If Puppeteer can't find Chrome, try common paths
                     const commonPaths = [
-                        '/usr/bin/chromium-browser',  // Alpine Linux
-                        '/usr/bin/chromium',          // Alpine Linux alternative
-                        '/usr/bin/google-chrome',     // Ubuntu/Debian
-                        '/usr/bin/google-chrome-stable', // Ubuntu/Debian
-                        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', // macOS
-                        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', // Windows
-                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' // Windows 32-bit
+                        '/usr/bin/chromium-browser',
+                        '/usr/bin/chromium',
+                        '/usr/bin/google-chrome',
+                        '/usr/bin/google-chrome-stable',
+                        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+                        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+                        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
                     ];
-                    
-                    // Try to find Chrome in common locations
                     const fs = require('fs');
                     for (const path of commonPaths) {
-                        try {
-                            if (fs.existsSync(path)) {
-                                resolvedExecutablePath = path;
-                                console.log(`Found browser executable at: ${path}`);
-                                break;
-                            }
-                        } catch (_) {
-                            continue;
+                        if (fs.existsSync(path)) {
+                            resolvedExecutablePath = path;
+                            console.log(`Found browser executable at: ${path}`);
+                            break;
                         }
                     }
                 }
@@ -78,31 +67,18 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
                     '--disable-web-security',
                     '--disable-features=VizDisplayCompositor',
                     '--single-process',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI',
-                    '--disable-ipc-flooding-protection',
-                    '--max_old_space_size=512', // Limit memory usage
-                    '--disable-extensions',
-                    '--disable-plugins'
                 ],
-                timeout: 45000, // Reduce browser launch timeout to 45 seconds
-                protocolTimeout: 45000 // Reduce protocol timeout to 45 seconds
+                timeout: 60000,
             };
-            
-            // Only set executablePath if we found one
-            if (resolvedExecutablePath && resolvedExecutablePath !== 'undefined' && resolvedExecutablePath !== undefined) {
+
+            if (resolvedExecutablePath) {
                 launchOptions.executablePath = resolvedExecutablePath;
-                console.log(`Using Chrome executable: ${resolvedExecutablePath}`);
             }
-            
+
             browser = await puppeteer.launch(launchOptions);
         }
 
         page = await browser.newPage();
-
-        // Set a realistic viewport and user agent
         await page.setViewport({ width: 1280, height: 800 });
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
 
@@ -110,19 +86,30 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
 
         await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-											
-        const priceElement = await page.$('span.product-card__market-price--value');
-        let priceElementText = null;
-		   
+        await page.waitForSelector('.product-card__market-price--value, .search-results', { timeout: 15000 });
 
-        if (priceElement) {
-            priceElementText = await page.evaluate(el => el.textContent, priceElement);
+        let priceElementText = null;
+        const element = await page.$('span.product-card__market-price--value');
+        if (element) {
+            const display = await page.evaluate(el => window.getComputedStyle(el).display, element);
+            const visibility = await page.evaluate(el => window.getComputedStyle(el).visibility, element);
+            const opacity = await page.evaluate(el => window.getComputedStyle(el).opacity, element);
+
+            if (display === 'none' || visibility === 'hidden' || opacity === '0') {
+                console.log('Element is hidden.');
+            } else {
+                const text = await page.evaluate(el => el.textContent, element);
+                console.log('Text content:', text);
+                priceElementText = text;
+            }
+        } else {
+            console.log('Element not found.');
         }
 
         if (!priceElementText) {
-            throw new Error('No price element found with the specified selector');
+            throw new Error('Price element not found or is not visible.');
         }
-        
+
         const price = parseFloat(priceElementText.replace(/[^0-9.-]+/g, ""));
 
         if (!isNaN(price)) {
@@ -132,58 +119,28 @@ const getMarketPrice = async (cardName, browserInstance = null, retryCount = 0) 
         return { cardName, price: null };
 
     } catch (error) {
-        console.error(`Failed to fetch card price from TCGplayer for "${cardName}":`, error.message);
-        
-        // Check if it's a connection error and handle accordingly
-        if (error.message.includes('Connection closed') || error.message.includes('Target closed') || error.message.includes('Protocol error')) {
-            console.log('Connection was closed, attempting recovery...');
-            // Don't try fallback if connection is already closed
-            if (retryCount < maxRetries) {
-                console.log(`Retrying price fetch for "${cardName}" in 2 seconds...`);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                return getMarketPrice(cardName, browserInstance, retryCount + 1);
-            }
-            return { cardName, price: null };
-        }
-        
-        // Retry logic
+        console.error(`Failed to fetch card price for "${cardName}":`, error.message);
         if (retryCount < maxRetries) {
-            console.log(`Retrying price fetch for "${cardName}" in 2 seconds...`);
+            console.log(`Retrying price fetch for "${cardName}"...`);
             await new Promise(resolve => setTimeout(resolve, 2000));
-            return getMarketPrice(cardName, browserInstance, retryCount + 1);
+            // Important: Close the potentially problematic browser instance before retrying
+            if (browser) await browser.close().catch(() => {});
+            return getMarketPrice(cardName, null, retryCount + 1);
         }
-        
         return { cardName, price: null };
     } finally {
-        // Clear the operation timeout and remove event listeners
         clearTimeout(operationTimeout);
         process.removeListener('SIGTERM', cleanup);
         process.removeListener('SIGINT', cleanup);
-        
-        // Safely close page and browser with proper error handling
-        try {
-            if (page) {
-                // Check if page is still connected before closing
-                if (!page.isClosed()) {
-                    await page.close();
-                }
-            }
-        } catch (closeError) {
-            console.log(`Page close warning: ${closeError.message}`);
+        if (page && !page.isClosed()) {
+            await page.close().catch(()=>{});
         }
-        
-        try {
-            if (!browserInstance && browser) {
-                // Check if browser is still connected before closing
-                if (browser.isConnected()) {
-                    await browser.close();
-                }
-            }
-        } catch (browserCloseError) {
-            console.log(`Browser close warning: ${browserCloseError.message}`);
+        if (!browserInstance && browser) {
+            await browser.close().catch(()=>{});
         }
     }
 };
+
 
 // --- Helper to fetch card image from Yugipedia ---
 const getCardImageFromYugipedia = async (cardName) => {
