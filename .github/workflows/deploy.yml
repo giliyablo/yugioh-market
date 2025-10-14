@@ -1,6 +1,21 @@
 name: Build and Deploy to GCP
 
 on:
+  # Allow manual runs from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to deploy'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - server
+        - worker
+        - client
+
+  # Continue to run on push to main or develop
   push:
     branches: [ main, develop ]
   pull_request:
@@ -25,25 +40,26 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20' # Using a current LTS version
           cache: 'npm'
 
       - name: Install server dependencies
         run: cd server && npm ci
       - name: Run server tests
-        run: cd server && npm test || echo "No tests found, continuing..."
+        run: cd server && npm test || echo "No server tests found, continuing..."
 
       - name: Install client dependencies
         run: cd client && npm ci
       - name: Run client tests
-        run: cd client && npm test || echo "No tests found, continuing..."
-      - name: Build client
+        run: cd client && npm test || echo "No client tests found, continuing..."
+      - name: Build client for validation
         run: cd client && npm run build
 
-  build:
+  build-and-deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    # Only run build/deploy on push or manual trigger, not on pull requests
+    if: github.event_name != 'pull_request'
     
     steps:
       - name: Checkout code
@@ -55,30 +71,20 @@ jobs:
           service_account_key: ${{ secrets.GCP_SA_KEY }}
           project_id: ${{ env.PROJECT_ID }}
 
-      - name: Build and push server image
+      # --- SERVER ---
+      - name: Build and Push Server Image
+        if: |
+          github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'server'
         run: gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest ./server
 
-      - name: Build and push worker image
-        run: gcloud builds submit --tag gcr.io/$PROJECT_ID/$WORKER_SERVICE:latest ./worker
-
-      - name: Build and push client image
-        run: gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest ./client
-
-  deploy-server:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    outputs:
-      SERVER_URL: ${{ steps.server-url.outputs.SERVER_URL }}
-    
-    steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: Deploy server to Cloud Run
+      - name: Deploy Server to Cloud Run
+        if: |
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'server')
         run: |
           gcloud run deploy $SERVER_SERVICE \
             --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
@@ -91,24 +97,20 @@ jobs:
             --set-env-vars NODE_ENV=production \
             --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
-      - name: Get server URL
-        id: server-url
-        run: |
-          SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-          echo "SERVER_URL=$SERVER_URL" >> $GITHUB_OUTPUT
+      # --- WORKER ---
+      - name: Build and Push Worker Image
+        if: |
+          github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'worker'
+        run: gcloud builds submit --tag gcr.io/$PROJECT_ID/$WORKER_SERVICE:latest ./worker
 
-  deploy-worker:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: Deploy worker to Cloud Run
+      - name: Deploy Worker to Cloud Run
+        if: |
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'worker')
         run: |
           gcloud run deploy $WORKER_SERVICE \
             --image gcr.io/$PROJECT_ID/$WORKER_SERVICE:latest \
@@ -121,27 +123,35 @@ jobs:
             --set-env-vars NODE_ENV=production \
             --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"
 
-  deploy-client:
-    needs: deploy-server
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
+      # --- CLIENT ---
+      - name: Build and Push Client Image
+        if: |
+          github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'client'
+        run: gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest ./client
 
-      - name: Deploy client to Cloud Run
-        env:
-          SERVER_URL: ${{ needs.deploy-server.outputs.SERVER_URL }}
+      - name: Deploy Client to Cloud Run
+        if: |
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'push' || 
+          github.event.inputs.service == 'all' || 
+          github.event.inputs.service == 'client')
         run: |
+          echo "Fetching server URL for client config..."
+          SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
+          if [ -z "$SERVER_URL" ]; then
+            echo "::error::Could not retrieve server URL. Is the server deployed?"
+            exit 1
+          fi
+
           if [ -n "$SERVER_DOMAIN" ]; then
             API_URL="https://$SERVER_DOMAIN/api"
           else
             API_URL="$SERVER_URL/api"
           fi
+          
+          echo "Deploying client with API_URL: $API_URL"
           gcloud run deploy $CLIENT_SERVICE \
             --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
             --platform managed \
@@ -151,10 +161,3 @@ jobs:
             --memory 1Gi \
             --cpu 1 \
             --set-env-vars VITE_API_URL=$API_URL
-
-      - name: Get client URL
-        run: |
-          CLIENT_URL=$(gcloud run services describe $CLIENT_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-          echo "Client deployed at: $CLIENT_URL"
-          echo "🌍 Your application is live at: ${CLIENT_DOMAIN:-$CLIENT_URL}"
-          
