@@ -27,21 +27,21 @@ exports.getAllPosts = async (req, res) => {
 
         // Get all posts from Firestore
         let allPosts = await postsService.getAllPosts();
-        
+
         // Filter by isActive
         allPosts = allPosts.filter(post => post.isActive !== false);
-        
+
         // Apply search filters
         if (q && typeof q === 'string') {
             const searchTerm = q.toLowerCase();
-            allPosts = allPosts.filter(post => 
+            allPosts = allPosts.filter(post =>
                 post.cardName && post.cardName.toLowerCase().includes(searchTerm)
             );
         }
-        
+
         if (user && typeof user === 'string') {
             const userTerm = user.toLowerCase();
-            allPosts = allPosts.filter(post => 
+            allPosts = allPosts.filter(post =>
                 (post.user && post.user.uid === user) ||
                 (post.user && post.user.displayName && post.user.displayName.toLowerCase().includes(userTerm))
             );
@@ -101,7 +101,7 @@ exports.createPost = async (req, res) => {
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
     }
-    
+
     // Do not fetch price synchronously; background job will enrich
     let finalPrice = (price === undefined || price === null || price === '') ? null : Number(price);
     let isApiPrice = false;
@@ -138,7 +138,7 @@ exports.createPost = async (req, res) => {
 
         const postId = await postsService.createPost(postData);
         const post = { id: postId, ...postData };
-        
+
         // Enqueue background enrichment
         enqueue({ postId: postId, cardName });
         res.status(201).json(post);
@@ -167,10 +167,14 @@ exports.updatePost = async (req, res) => {
         const { id } = req.params;
         const { uid } = req.user;
         const allowedFields = ['price', 'condition', 'cardImageUrl', 'cardName', 'postType', 'isActive'];
-        
+
         const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
-        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        const isAdmin = await postsService.isUserAdmin(uid);
+        if (post.user?.uid !== uid && !isAdmin) {
+            return res.status(403).json({ msg: 'Not authorized' });
+        }
 
         const updateData = {};
         for (const key of allowedFields) {
@@ -199,7 +203,11 @@ exports.deletePost = async (req, res) => {
         const { uid } = req.user;
         const post = await postsService.getPost(id);
         if (!post) return res.status(404).json({ msg: 'Post not found' });
-        if (post.user?.uid !== uid) return res.status(403).json({ msg: 'Not authorized' });
+
+        const isAdmin = await postsService.isUserAdmin(uid);
+        if (post.user?.uid !== uid && !isAdmin) {
+            return res.status(403).json({ msg: 'Not authorized' });
+        }
 
         await postsService.deletePost(id);
         return res.json({ msg: 'Post deleted' });
@@ -213,7 +221,7 @@ exports.deletePost = async (req, res) => {
 // This is a placeholder for a very complex feature.
 exports.createBatchPosts = async (req, res) => {
     const form = formidable({});
-    
+
     form.parse(req, (err, fields, files) => {
         if (err) {
             console.error('Error parsing form data:', err);
@@ -231,8 +239,8 @@ exports.createBatchPosts = async (req, res) => {
         // 5. This should ideally be handled as a background job to avoid long request timeouts.
 
         console.log('Batch file received (implementation pending):', files.batchFile);
-        res.status(202).json({ 
-            msg: 'Batch upload received and is being processed. This feature is a work in progress.' 
+        res.status(202).json({
+            msg: 'Batch upload received and is being processed. This feature is a work in progress.'
         });
     });
 };
@@ -326,7 +334,7 @@ exports.getCardPriceFromTCG = async (req, res) => {
     if (!cardName) {
         return res.status(400).json({ message: 'Card name is required.' });
     }
-    
+
     try {
         const result = await getMarketPrice(cardName); // Calls in single mode
         if (result && result.price !== null) {
@@ -338,4 +346,3 @@ exports.getCardPriceFromTCG = async (req, res) => {
         res.status(500).json({ message: 'An error occurred while fetching the card price.' });
     }
 };
-

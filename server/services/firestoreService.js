@@ -6,7 +6,7 @@ const db = admin.firestore();
 // Helper function to convert Firestore timestamps
 const convertTimestamps = (data) => {
   if (!data) return data;
-  
+
   const converted = { ...data };
   Object.keys(converted).forEach(key => {
     if (converted[key] && converted[key].toDate) {
@@ -39,7 +39,7 @@ const postsService = {
       const snapshot = await db.collection('posts')
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -57,7 +57,7 @@ const postsService = {
         .where('user.uid', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -103,6 +103,18 @@ const postsService = {
     } catch (error) {
       console.error('Error deleting post:', error);
       throw error;
+    }
+  },
+
+  // Check if a user is an admin
+  isUserAdmin: async (userId) => {
+    if (!userId) return false;
+    try {
+      const adminDoc = await db.collection('admins').doc(userId).get();
+      return adminDoc.exists;
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false;
     }
   }
 };
@@ -177,7 +189,7 @@ const cardsService = {
         .where('name', '<=', searchTerm + '\uf8ff')
         .limit(20)
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -212,7 +224,7 @@ const listingsService = {
       const snapshot = await db.collection('listings')
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -230,7 +242,7 @@ const listingsService = {
         .where('userId', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -266,7 +278,7 @@ const offersService = {
         .where('listingId', '==', listingId)
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -302,7 +314,7 @@ const transactionsService = {
         .where('buyerId', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
@@ -337,7 +349,7 @@ const reviewsService = {
         .where('revieweeId', '==', userId)
         .orderBy('createdAt', 'desc')
         .get();
-      
+
       return snapshot.docs.map(doc => ({
         id: doc.id,
         ...convertTimestamps(doc.data())
