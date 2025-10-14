@@ -68,7 +68,7 @@ gcloud run deploy $WORKER_SERVICE \
   --platform managed \
   --region $REGION \
   --no-allow-unauthenticated \
-  --port 5000 \
+  --port 4000 \
   --memory 2Gi \
   --cpu 2 \
   --set-env-vars NODE_ENV=production \
