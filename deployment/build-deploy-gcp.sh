@@ -46,7 +46,7 @@ deploy_worker() {
     --region $REGION \
     --no-allow-unauthenticated \
     --port 4000 \
-    --memory 2Gi \
+    --memory 4Gi \
     --cpu 2 \
     --set-env-vars NODE_ENV=production \
     --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=FIREBASE_SERVICE_ACCOUNT_JSON:latest"

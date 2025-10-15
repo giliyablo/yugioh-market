@@ -8,10 +8,12 @@ const getBrowserInstance = async () => {
     if (browserInstance && browserInstance.isConnected()) {
         return browserInstance;
     }
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath();
+    // The executable path for Debian-based systems where chromium is installed via apt
+    const executablePath = '/usr/bin/chromium';
+
     browserInstance = await puppeteer.launch({
         headless: "new",
-        executablePath,
+        executablePath: executablePath, // Explicitly set the path here
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -19,9 +21,7 @@ const getBrowserInstance = async () => {
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu',
-            '--disable-infobars',
-            '--window-size=1280,800'
+            '--disable-gpu'
         ],
     });
     return browserInstance;
@@ -34,11 +34,12 @@ const getMarketPrice = async (cardName) => {
     try {
         const browser = await getBrowserInstance();
         page = await browser.newPage();
-        
+
         // --- Block images and other media ---
         await page.setRequestInterception(true);
         page.on('request', (req) => {
-            if (['image', 'stylesheet', 'media'].includes(req.resourceType())) {
+            const resourceType = req.resourceType();
+            if (['image', 'stylesheet', 'font', 'media'].includes(resourceType)) {
                 req.abort();
             } else {
                 req.continue();
@@ -63,7 +64,8 @@ const getMarketPrice = async (cardName) => {
         }
         return { cardName, price: null };
     } catch (error) {
-        console.error(`Failed to fetch card price for "${cardName}":`, error.message);
+        // More specific error logging
+        console.error(`Error in getMarketPrice for "${cardName}":`, error.message);
         return { cardName, price: null };
     } finally {
         if (page) {
