@@ -40,6 +40,7 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     wget \
     xdg-utils \
+    chromium \
     --no-install-recommends
 
 WORKDIR /app
@@ -53,7 +54,7 @@ RUN npm ci --no-audit --no-fund --ignore-scripts
 # Copy application code
 COPY . .
 
-# Set environment variables for Puppeteer
+# Set environment variable to skip Puppeteer's browser download
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Expose the port for the health check server
