@@ -5,16 +5,32 @@ const admin = require('firebase-admin'); // Ensure firebase-admin is imported
 // This function now creates a job document in Firestore.
 const enqueue = async (jobData) => {
     try {
+        // A simple check to prevent re-enqueueing jobs that are already being processed.
+        const jobsRef = admin.firestore().collection('jobs');
+        const snapshot = await jobsRef.where('postId', '==', jobData.postId).where('status', 'in', ['pending', 'running']).get();
+        
+        if (!snapshot.empty) {
+            console.log(`Job for post ${jobData.postId} is already pending or running. Skipping.`);
+            return;
+        }
+
         const job = {
             ...jobData,
             status: 'pending', // Initial status
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
-        await admin.firestore().collection('jobs').add(job);
+        await jobsRef.add(job);
         console.log('Successfully enqueued job for card:', jobData.cardName);
     } catch (error) {
         console.error('Error enqueuing job to Firestore:', error);
     }
+};
+
+// Helper function to determine if a post needs price/image enrichment
+const needsEnrichment = (post) => {
+    const priceMissing = post.price === null;
+    const imageMissing = !post.cardImageUrl || post.cardImageUrl.includes('placehold.co');
+    return priceMissing || imageMissing;
 };
 
 
@@ -36,6 +52,15 @@ exports.getAllPosts = async (req, res) => {
 
         // Get all posts from Firestore
         let allPosts = await postsService.getAllPosts();
+
+        // --- Self-healing mechanism: Enqueue jobs for any posts that need it ---
+        // This runs in the background (fire-and-forget) and does not delay the API response.
+        allPosts.forEach(post => {
+            if (needsEnrichment(post)) {
+                console.log(`[Self-Heal] Post ${post.id} for "${post.cardName}" needs enrichment. Enqueueing job.`);
+                enqueue({ postId: post.id, cardName: post.cardName });
+            }
+        });
         
         // Filter by isActive
         allPosts = allPosts.filter(post => post.isActive !== false);
@@ -127,7 +152,6 @@ exports.createPost = async (req, res) => {
             }
         };
 
-        // FIX: Handle price and imageUrl correctly when creating from the client form
         // Treat 0, empty string, or undefined as null to trigger enrichment.
         const finalPrice = (!postPayload.price) ? null : Number(postPayload.price);
         const finalImageUrl = postPayload.cardImageUrl || 'https://placehold.co/243x353?text=No+Image';
@@ -151,8 +175,7 @@ exports.createPost = async (req, res) => {
 
         const postId = await postsService.createPost(postData);
         
-        const needsEnrichment = postData.enrichment.priceStatus === 'pending' || postData.enrichment.imageStatus === 'pending';
-        if (needsEnrichment) {
+        if (needsEnrichment(postData)) {
             enqueue({ postId: postId, cardName: postData.cardName });
         }
 
@@ -199,13 +222,35 @@ exports.updatePost = async (req, res) => {
                 updateData[key] = req.body[key];
             }
         }
+        
+        // If price is explicitly updated to be empty/0, set it to null to trigger re-enrichment.
         if (req.body.price !== undefined) {
-            updateData.isApiPrice = false;
+            if (!req.body.price || Number(req.body.price) === 0) {
+                updateData.price = null;
+                updateData.isApiPrice = true; // Will be API price after worker runs
+                updateData.enrichment = { ...post.enrichment, priceStatus: 'pending' };
+            } else {
+                updateData.isApiPrice = false; // Manually set price
+                updateData.enrichment = { ...post.enrichment, priceStatus: 'idle' };
+            }
+        }
+
+        // If image URL is removed or set to placeholder, trigger re-enrichment.
+        if (req.body.cardImageUrl !== undefined && (!req.body.cardImageUrl || req.body.cardImageUrl.includes('placehold.co'))) {
+            updateData.cardImageUrl = 'https://placehold.co/243x353?text=No+Image';
+            updateData.enrichment = { ...(updateData.enrichment || post.enrichment), imageStatus: 'pending' };
         }
 
         await postsService.updatePost(id, updateData);
-        const updatedPost = await postsService.getPost(id);
-        return res.json(updatedPost);
+        
+        const updatedPostForCheck = { ...post, ...updateData };
+        if (needsEnrichment(updatedPostForCheck)) {
+            console.log(`[Post Update] Post ${id} needs enrichment after update. Enqueueing job.`);
+            enqueue({ postId: id, cardName: updatedPostForCheck.cardName });
+        }
+
+        const finalUpdatedPost = await postsService.getPost(id);
+        return res.json(finalUpdatedPost);
     } catch (err) {
         console.error(err.message);
         return res.status(500).send('Server Error');
@@ -308,3 +353,4 @@ exports.createPostsFromList = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+
