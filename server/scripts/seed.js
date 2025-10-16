@@ -74,7 +74,7 @@ async function main() {
 
             // Create the post using the authenticated API endpoint
             console.log(`[${index + 1}/${posts.length}] Uploading post for card: "${post.cardName}"...`);
-            // *** FIX: The endpoint is the base URL itself for POST requests ***
+            // *** FIX: The endpoint for creating a post is the base router URL ('/api/'), not '/api/posts' ***
             await axios.post(`${API_BASE_URL}/`, post, {
                 headers: {
                     'Authorization': `Bearer ${idToken}`
@@ -94,3 +94,4 @@ async function main() {
     }
     console.log('🎉 Seeding process complete.');
 }
+
