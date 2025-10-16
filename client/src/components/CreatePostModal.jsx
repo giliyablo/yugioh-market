@@ -37,11 +37,27 @@ const CreatePostModal = ({ onClose, onPostCreated }) => {
         setError('');
         try {
             if (!isBatch) {
+                // FIX: Ensure price is null if empty, otherwise it's a number.
+                const priceValue = formData.price === '' ? null : parseFloat(formData.price);
+
                 const postData = {
                     ...formData,
-                    contactEmail: currentUser.email,
-                    contactPhone: currentUser.phoneNumber,
+                    price: priceValue, // Use the cleaned price value
+                    user: { // Pass user info for the server to use
+                        uid: currentUser.uid,
+                        displayName: currentUser.displayName,
+                        photoURL: currentUser.photoURL,
+                        contact: {
+                            email: currentUser.email,
+                            phoneNumber: currentUser.phoneNumber
+                        }
+                    }
                 };
+
+                // The API doesn't need these fields for single post creation
+                delete postData.contactEmail;
+                delete postData.contactPhone;
+
                 const res = await createPost(postData);
                 onPostCreated(res.data);
             } else {

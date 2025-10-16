@@ -103,13 +103,9 @@ exports.getAllPosts = async (req, res) => {
 
 // --- Controller for POST /api/posts ---
 exports.createPost = async (req, res) => {
-    // User from the authentication token
     const authenticatedUser = req.user;
-    
-    // The entire post object is sent in the body by the seed script or client
     const postPayload = req.body;
 
-    // Security Check: Ensure the UID in the payload matches the authenticated user
     if (postPayload.user && postPayload.user.uid !== authenticatedUser.uid) {
         return res.status(403).json({ msg: 'Payload UID does not match authenticated user.' });
     }
@@ -121,8 +117,6 @@ exports.createPost = async (req, res) => {
     }
 
     try {
-        // Construct the final user object, prioritizing data from the payload (from seed script)
-        // but falling back to token data (from client).
         const finalUserObject = {
             uid: authenticatedUser.uid,
             displayName: postPayload.user?.displayName || authenticatedUser.displayName || 'Anonymous User',
@@ -132,23 +126,32 @@ exports.createPost = async (req, res) => {
                 phoneNumber: postPayload.user?.contact?.phoneNumber || authenticatedUser.phoneNumber || null,
             }
         };
-        
-        // Combine everything into the final data object for Firestore
+
+        // FIX: Handle price and imageUrl correctly when creating from the client form
+        // Treat 0, empty string, or undefined as null to trigger enrichment.
+        const finalPrice = (!postPayload.price) ? null : Number(postPayload.price);
+        const finalImageUrl = postPayload.cardImageUrl || 'https://placehold.co/243x353?text=No+Image';
+
         const postData = {
             ...postPayload,
+            price: finalPrice,
+            cardImageUrl: finalImageUrl,
             user: finalUserObject,
-            isActive: true, // Ensure posts are active by default
-            // Let Firestore handle the timestamp on creation
+            isActive: true,
+            isApiPrice: finalPrice === null, // It's an API price if we need to fetch it
+            enrichment: {
+                priceStatus: finalPrice === null ? 'pending' : 'idle',
+                imageStatus: finalImageUrl.includes('placehold.co') ? 'pending' : 'idle',
+                lastError: null
+            }
         };
         
-        // Remove serverTimestamp from payload if it exists, as it should be set by the server
         delete postData.createdAt;
         delete postData.updatedAt;
 
         const postId = await postsService.createPost(postData);
         
-        // After creating, enqueue a job for enrichment if needed
-        const needsEnrichment = !postData.price || !postData.cardImageUrl || postData.cardImageUrl.includes('placehold.co');
+        const needsEnrichment = postData.enrichment.priceStatus === 'pending' || postData.enrichment.imageStatus === 'pending';
         if (needsEnrichment) {
             enqueue({ postId: postId, cardName: postData.cardName });
         }
@@ -196,7 +199,6 @@ exports.updatePost = async (req, res) => {
                 updateData[key] = req.body[key];
             }
         }
-        // If price is manually updated, it's no longer an API price.
         if (req.body.price !== undefined) {
             updateData.isApiPrice = false;
         }
@@ -232,7 +234,6 @@ exports.deletePost = async (req, res) => {
 };
 
 // --- Controller for POST /api/posts/batch ---
-// This is a placeholder for a very complex feature.
 exports.createBatchPosts = async (req, res) => {
     const form = formidable({});
     
@@ -307,4 +308,3 @@ exports.createPostsFromList = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
-
