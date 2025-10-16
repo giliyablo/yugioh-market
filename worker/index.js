@@ -61,7 +61,6 @@ app.delete('/delete-jobs', async (req, res) => {
     }
 });
 
-
 function listenForJobs() {
     console.log("Worker is listening for new jobs...");
     const query = db.collection('jobs').where('status', '==', 'pending');
@@ -74,14 +73,17 @@ function listenForJobs() {
                 const jobId = jobDoc.id;
 
                 console.log(`Processing job ${jobId} for card: ${jobData.cardName}`);
+                // Mark job as 'running' to prevent reprocessing by other workers.
                 jobDoc.ref.update({ status: 'running' }).then(() => {
                     processJob(db, jobData)
                         .then(() => {
-                            console.log(`Job ${jobId} completed successfully.`);
-                            return jobDoc.ref.update({ status: 'completed' });
+                            console.log(`Job ${jobId} completed successfully. Deleting job document...`);
+                            // On success, delete the job from the collection.
+                            return jobDoc.ref.delete();
                         })
                         .catch(error => {
                             console.error(`Job ${jobId} failed:`, error);
+                            // On failure, update the status for debugging, but do not delete.
                             return jobDoc.ref.update({ status: 'failed', error: error.message });
                         });
                 });

@@ -5,25 +5,7 @@ const getMarketPrice = async (cardName) => {
     try {
         const response = await axios.post(
             'https://mp-search-api.tcgplayer.com/v1/search/request?q=' + encodeURIComponent(cardName) + '&isList=false',
-            {
-                "algorithm": "sales_synonym_v2",
-                "from": 0,
-                "size": 1,
-                "filters": {
-                    "term": {},
-                    "range": {},
-                    "match": {}
-                },
-                "listingType": "all",
-                "context": {
-                    "cart": {},
-                    "shippingCountry": "US"
-                },
-                "settings": {
-                    "useFuzzySearch": true,
-                    "didYouMean": true
-                }
-            },
+            {},
             {
                 headers: {
                     'Content-Type': 'application/json',
@@ -36,7 +18,10 @@ const getMarketPrice = async (cardName) => {
         if (marketPrice) {
             return { cardName, price: marketPrice };
         }
+        
+        console.warn(`Market price not found for "${cardName}".`);
         return { cardName, price: null };
+
     } catch (error) {
         console.error(`Error in getMarketPrice for "${cardName}":`, error.message);
         throw error;
@@ -50,16 +35,29 @@ const getCardImageFromYugipedia = async (cardName) => {
         const { data: html } = await axios.get(wikiUrl, { timeout: 10000 });
         const $ = cheerio.load(html);
         let imageUrl = ($('td.cardtable-cardimage a img').attr('src') || '').trim();
+
         if (imageUrl && !imageUrl.startsWith('http')) {
             imageUrl = `https://yugipedia.com${imageUrl}`;
         }
-        return imageUrl || null;
+        // If the scraper finds an image, return it. Otherwise, it will proceed to the catch block.
+        if (imageUrl) {
+            return imageUrl;
+        }
+        throw new Error('Image not found on Yugipedia page.');
+
     } catch (error) {
-        console.error(`Error scraping Yugipedia for card "${cardName}":`, error.message);
+        console.warn(`Could not scrape Yugipedia for "${cardName}", attempting fallback...`);
+        // Fallback to YGOPRODeck API
         try {
             const nameParam = encodeURIComponent(String(cardName).trim());
             const { data } = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
-            return data?.data?.[0]?.card_images?.[0]?.image_url || null;
+            
+            const cardImages = data?.data?.[0]?.card_images;
+            if (cardImages && cardImages.length > 0) {
+                // Prioritize the smaller image URL for better performance in a list/grid view.
+                return cardImages[0].image_url_small || cardImages[0].image_url;
+            }
+            return null;
         } catch (fallbackErr) {
             console.error('Fallback to YGOPRODeck API failed:', fallbackErr.message);
             return null;
@@ -68,3 +66,4 @@ const getCardImageFromYugipedia = async (cardName) => {
 };
 
 module.exports = { getMarketPrice, getCardImageFromYugipedia };
+
