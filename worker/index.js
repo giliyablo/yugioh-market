@@ -17,7 +17,6 @@ app.get('/health', (req, res) => {
     res.status(200).send('OK');
 });
 
-
 // --- Initialize Firebase Admin SDK ---
 try {
     if (admin.apps.length === 0) {
@@ -33,6 +32,35 @@ try {
 }
 
 const db = admin.firestore();
+
+// --- Delete Jobs Endpoint ---
+app.delete('/delete-jobs', async (req, res) => {
+    const { status } = req.query;
+    let query = db.collection('jobs');
+
+    if (status === 'completed') {
+        query = query.where('status', '==', 'completed');
+    }
+
+    try {
+        const snapshot = await query.get();
+        if (snapshot.empty) {
+            return res.status(200).send('No jobs to delete.');
+        }
+
+        const batch = db.batch();
+        snapshot.docs.forEach(doc => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+        res.status(200).send(`Successfully deleted ${snapshot.size} jobs.`);
+    } catch (error) {
+        console.error('Error deleting jobs:', error);
+        res.status(500).send('Failed to delete jobs.');
+    }
+});
+
 
 function listenForJobs() {
     console.log("Worker is listening for new jobs...");
