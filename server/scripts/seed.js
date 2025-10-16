@@ -5,7 +5,7 @@ import axios from 'axios';
 import { fileURLToPath } from 'url';
 
 // --- Configuration ---
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://localhost:5000/api'; // The base URL for the API
 const DATA_FILE = 'yugioh_posts_corrected.json';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -60,7 +60,6 @@ async function main() {
 
             // The createPost endpoint requires a valid Firebase ID token, not a custom token.
             // We need to "sign in" with the custom token to get an ID token.
-            // This is a workaround since we don't have a client-side auth flow.
             // NOTE: This part requires your API key from the Firebase project settings.
             const apiKey = process.env.FIREBASE_API_KEY; // Make sure to add this to your .env file!
             if (!apiKey) {
@@ -75,7 +74,8 @@ async function main() {
 
             // Create the post using the authenticated API endpoint
             console.log(`[${index + 1}/${posts.length}] Uploading post for card: "${post.cardName}"...`);
-            await axios.post(`${API_BASE_URL}/posts`, post, {
+            // *** FIX: The endpoint is the base URL itself for POST requests ***
+            await axios.post(`${API_BASE_URL}/`, post, {
                 headers: {
                     'Authorization': `Bearer ${idToken}`
                 }
