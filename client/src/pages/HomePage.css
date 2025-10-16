@@ -74,12 +74,19 @@ main {
     border-bottom: none;
 }
 
+.table-cell-image {
+    width: 90px; /* Give the cell a defined width */
+    padding: 0.5rem !important;
+}
+
 .table-cell-image img {
-    height: 120px;
-    width: auto;
+    width: 80px;  /* Set a fixed width for the image */
+    height: auto; /* Let the height adjust to maintain aspect ratio */
     object-fit: contain;
     border-radius: 6px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    display: block; /* Remove extra space below the image */
+    margin: 0 auto; /* Center the image within the cell */
 }
 
 .capitalize {
@@ -376,3 +383,4 @@ main {
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
 }
+

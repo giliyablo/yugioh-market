@@ -1,80 +1,48 @@
-// giliyablo/yugioh-market/yugioh-market-e6759367203882ac287f720598e236db05239e5f/worker/cardData.js
 const axios = require('axios');
 const cheerio = require('cheerio');
-const puppeteer = require('puppeteer');
-
-let browserInstance = null;
-const getBrowserInstance = async () => {
-    if (browserInstance && browserInstance.isConnected()) {
-        return browserInstance;
-    }
-    const executablePath = '/usr/bin/chromium';
-
-    console.log('Launching new browser instance...');
-    try {
-        browserInstance = await puppeteer.launch({
-            headless: "new",
-            executablePath: executablePath,
-            // Dump browser process stdout and stderr into the Node.js process
-            dumpio: true, 
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu'
-            ],
-        });
-        console.log('Browser instance launched successfully.');
-        return browserInstance;
-    } catch (launchError) {
-        console.error("Critical: Failed to launch browser instance:", launchError);
-        throw launchError; // Re-throw the error to ensure it's not swallowed
-    }
-};
 
 const getMarketPrice = async (cardName) => {
-    let page = null;
     try {
-        const browser = await getBrowserInstance();
-        page = await browser.newPage();
-
-        await page.setRequestInterception(true);
-        page.on('request', (req) => {
-            if (['image', 'stylesheet', 'font', 'media'].includes(req.resourceType())) {
-                req.abort();
-            } else {
-                req.continue();
+        const response = await axios.post(
+            'https://mp-search-api.tcgplayer.com/v1/search/request?q=' + encodeURIComponent(cardName) + '&isList=false',
+            {
+                "algorithm": "sales_synonym_v2",
+                "from": 0,
+                "size": 1,
+                "filters": {
+                    "term": {},
+                    "range": {},
+                    "match": {}
+                },
+                "listingType": "all",
+                "context": {
+                    "cart": {},
+                    "shippingCountry": "US"
+                },
+                "settings": {
+                    "useFuzzySearch": true,
+                    "didYouMean": true
+                }
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                }
             }
-        });
+        );
 
-        await page.setViewport({ width: 1280, height: 800 });
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+        const marketPrice = response.data?.results[0]?.results[0]?.marketPrice;
 
-        const formattedCardName = encodeURIComponent(String(cardName).trim());
-        const searchUrl = `https://www.tcgplayer.com/search/tcg/product?productLineName=tcg&q=${formattedCardName}&view=grid`;
-
-        await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        const priceElement = await page.waitForSelector('.product-card__market-price--value', { timeout: 15000 });
-
-        if (priceElement) {
-            const priceText = await page.evaluate(el => el.textContent, priceElement);
-            const price = parseFloat(priceText.replace(/[^0-9.-]+/g, ""));
-            return !isNaN(price) ? { cardName, price } : { cardName, price: null };
+        if (marketPrice) {
+            return { cardName, price: marketPrice };
         }
         return { cardName, price: null };
     } catch (error) {
         console.error(`Error in getMarketPrice for "${cardName}":`, error.message);
-        // Important: Re-throw the error so the job can be marked as failed.
         throw error;
-    } finally {
-        if (page) await page.close();
     }
 };
 
-// --- getCardImageFromYugipedia (no changes needed) ---
 const getCardImageFromYugipedia = async (cardName) => {
     try {
         const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '_'));

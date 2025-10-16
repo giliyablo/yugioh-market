@@ -103,60 +103,65 @@ exports.getAllPosts = async (req, res) => {
 
 // --- Controller for POST /api/posts ---
 exports.createPost = async (req, res) => {
-    const { cardName, postType, price, condition, cardImageUrl, contactEmail, contactPhone } = req.body;
-    const { uid, name, email: userEmail, phone_number: userPhone } = req.user; // From authMiddleware
-    const displayName = name || userEmail || 'User';
+    // User from the authentication token
+    const authenticatedUser = req.user;
+    
+    // The entire post object is sent in the body by the seed script or client
+    const postPayload = req.body;
+
+    // Security Check: Ensure the UID in the payload matches the authenticated user
+    if (postPayload.user && postPayload.user.uid !== authenticatedUser.uid) {
+        return res.status(403).json({ msg: 'Payload UID does not match authenticated user.' });
+    }
+
+    const { cardName, postType } = postPayload;
 
     if (!cardName || !postType) {
         return res.status(400).json({ msg: 'Card name and post type are required.' });
     }
-    
-    // Do not fetch price synchronously; background job will enrich
-    let finalPrice = (price === undefined || price === null || price === '') ? null : Number(price);
-    let isApiPrice = false;
 
     try {
-        // Do not fetch image synchronously; background job will enrich
-        let finalImageUrl = cardImageUrl || undefined;
-
-        const email = contactEmail || userEmail || null;
-        const phoneNumber = contactPhone || userPhone || null;
-
-        const postData = {
-            user: {
-                uid,
-                displayName,
-                contact: {
-                    email,
-                    phoneNumber
-                }
-            },
-            cardName,
-            postType,
-            price: finalPrice,
-            condition: condition || 'Near Mint',
-            cardImageUrl: finalImageUrl || 'https://placehold.co/243x353?text=No+Image',
-            isApiPrice,
-            isActive: true,
-            enrichment: {
-                priceStatus: (finalPrice === null ? 'pending' : 'idle'),
-                imageStatus: (!finalImageUrl ? 'pending' : 'idle'),
-                lastError: null
+        // Construct the final user object, prioritizing data from the payload (from seed script)
+        // but falling back to token data (from client).
+        const finalUserObject = {
+            uid: authenticatedUser.uid,
+            displayName: postPayload.user?.displayName || authenticatedUser.displayName || 'Anonymous User',
+            photoURL: postPayload.user?.photoURL || authenticatedUser.photoURL || null,
+            contact: {
+                email: postPayload.user?.contact?.email || authenticatedUser.email || null,
+                phoneNumber: postPayload.user?.contact?.phoneNumber || authenticatedUser.phoneNumber || null,
             }
         };
+        
+        // Combine everything into the final data object for Firestore
+        const postData = {
+            ...postPayload,
+            user: finalUserObject,
+            isActive: true, // Ensure posts are active by default
+            // Let Firestore handle the timestamp on creation
+        };
+        
+        // Remove serverTimestamp from payload if it exists, as it should be set by the server
+        delete postData.createdAt;
+        delete postData.updatedAt;
 
         const postId = await postsService.createPost(postData);
-        const post = { id: postId, ...postData };
         
-        // Enqueue background enrichment by creating a Firestore document
-        enqueue({ postId: postId, cardName });
-        res.status(201).json(post);
+        // After creating, enqueue a job for enrichment if needed
+        const needsEnrichment = !postData.price || !postData.cardImageUrl || postData.cardImageUrl.includes('placehold.co');
+        if (needsEnrichment) {
+            enqueue({ postId: postId, cardName: postData.cardName });
+        }
+
+        const createdPost = await postsService.getPost(postId);
+        res.status(201).json(createdPost);
 
     } catch (err) {
-        console.error(err.message);
+        console.error('Error in createPost:', err.message);
         res.status(500).send('Server Error');
     }
 };
+
 
 // --- Controller for GET /api/posts/my-posts ---
 exports.getMyPosts = async (req, res) => {
@@ -247,8 +252,8 @@ exports.createBatchPosts = async (req, res) => {
 // --- Controller for POST /api/posts/batch-list ---
 exports.createPostsFromList = async (req, res) => {
     try {
-        const { uid, name, email: userEmail, phone_number: userPhone } = req.user;
-        const displayName = name || userEmail || 'User';
+        const { uid, name, email: userEmail, phone_number: userPhone, photoURL } = req.user;
+        const displayName = name || userEmail || 'Anonymous User';
         const { cardNames, priceMode = 'market', fixedPrice, postType = 'sell', condition = 'Near Mint' } = req.body;
 
         if (!Array.isArray(cardNames) || cardNames.length === 0) {
@@ -256,7 +261,7 @@ exports.createPostsFromList = async (req, res) => {
         }
 
         const cardsToProcess = cardNames.map(s => String(s).trim()).filter(Boolean);
-        const created = [];
+        const createdPosts = [];
 
         for (const cardName of cardsToProcess) {
             let finalPrice = null;
@@ -267,7 +272,15 @@ exports.createPostsFromList = async (req, res) => {
             }
 
             const postData = {
-                user: { uid, displayName, contact: { email: userEmail, phoneNumber: userPhone || null } },
+                user: { 
+                    uid, 
+                    displayName, 
+                    photoURL,
+                    contact: { 
+                        email: userEmail || null, 
+                        phoneNumber: userPhone || null 
+                    } 
+                },
                 cardName,
                 postType,
                 price: finalPrice,
@@ -276,21 +289,22 @@ exports.createPostsFromList = async (req, res) => {
                 cardImageUrl: 'https://placehold.co/243x353?text=No+Image',
                 isActive: true,
                 enrichment: {
-                    priceStatus: (finalPrice === null ? 'pending' : 'idle'),
+                    priceStatus: (priceMode === 'none' || finalPrice !== null) ? 'idle' : 'pending',
                     imageStatus: 'pending',
                     lastError: null
                 }
             };
 
             const postId = await postsService.createPost(postData);
-            const saved = { id: postId, ...postData };
             enqueue({ postId: postId, cardName });
-            created.push(saved);
+            const savedPost = await postsService.getPost(postId);
+            createdPosts.push(savedPost);
         }
 
-        res.status(201).json({ count: created.length, items: created });
+        res.status(201).json({ count: createdPosts.length, items: createdPosts });
     } catch (err) {
         console.error("Error in createPostsFromList:", err.message);
         res.status(500).send('Server Error');
     }
 };
+
