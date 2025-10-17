@@ -3,13 +3,20 @@ const cheerio = require('cheerio');
 
 // This function attempts to find a price, trying different name variations.
 const getMarketPrice = async (cardName) => {
-    // A normalized version of the name, replacing hyphens with spaces, often yields better results.
-    const normalizedCardName = cardName.replace(/-/g, ' ');
+    // 1. Original name
+    const original = encodeURIComponent(String(cardName).trim());;
+    // 2. Normalized: Replaces hyphens with spaces
+    const normalized = cardName.replace(/-/g, ' ');
+    // 3. Super-Normalized: Lowercase and remove all non-alphanumeric characters (except spaces)
+    const superNormalized = cardName.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 
-    // We'll try the normalized name first, then the original if needed.
-    const searchTerms = Array.from(new Set([normalizedCardName, cardName]));
+    // Create a unique set of search terms to try in order of likely success.
+    const searchTerms = Array.from(new Set([normalized, superNormalized, original]));
 
     for (const term of searchTerms) {
+        // Skip empty search terms which can happen with certain inputs.
+        if (!term) continue;
+
         try {
             const payload = {
                 "algorithm": "sales_synonym_v2",
@@ -40,44 +47,26 @@ const getMarketPrice = async (cardName) => {
         }
     }
 
-    // If both attempts fail, return null.
+    // If all attempts fail, log an error and return null.
     console.error(`Could not find a market price for "${cardName}" after trying all variations.`);
     return { cardName, price: null };
 };
 
 
 const getCardImageFromYugipedia = async (cardName) => {
-    try {
-        const formattedCardName = encodeURIComponent(String(cardName).trim().replace(/ /g, '_'));
-        const wikiUrl = `https://yugipedia.com/wiki/${formattedCardName}`;
-        const { data: html } = await axios.get(wikiUrl, { timeout: 10000 });
-        const $ = cheerio.load(html);
-        let imageUrl = ($('td.cardtable-cardimage a img').attr('src') || '').trim();
-
-        if (imageUrl && !imageUrl.startsWith('http')) {
-            imageUrl = `https://yugipedia.com${imageUrl}`;
-        }
-        if (imageUrl) {
-            return imageUrl;
-        }
-        throw new Error('Image not found on Yugipedia page.');
-
-    } catch (error) {
-        console.warn(`Could not scrape Yugipedia for "${cardName}", attempting fallback...`);
-        try {
-            const nameParam = encodeURIComponent(String(cardName).trim());
-            const { data } = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
-            
-            const cardImages = data?.data?.[0]?.card_images;
-            if (cardImages && cardImages.length > 0) {
-                return cardImages[0].image_url_small || cardImages[0].image_url;
-            }
-            return null;
-        } catch (fallbackErr) {
-            console.error('Fallback to YGOPRODeck API failed:', fallbackErr.message);
-            return null;
-        }
+  try {
+    const nameParam = encodeURIComponent(String(cardName).trim());
+    const { data } = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
+    
+    const cardImages = data?.data?.[0]?.card_images;
+    if (cardImages && cardImages.length > 0) {
+        return cardImages[0].image_url_small || cardImages[0].image_url;
     }
+    return null;
+  } catch (fallbackErr) {
+    console.error('Fallback to YGOPRODeck API failed:', fallbackErr.message);
+  return null;
+  }
 };
 
 module.exports = { getMarketPrice, getCardImageFromYugipedia };
