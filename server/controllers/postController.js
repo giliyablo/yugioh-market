@@ -353,3 +353,62 @@ exports.createPostsFromList = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
+// --- Controller for POST /api/posts/admin/batch-whatsapp ---
+exports.createPostsFromWhatsapp = async (req, res) => {
+    try {
+        const postsToCreate = req.body.posts;
+
+        if (!Array.isArray(postsToCreate) || postsToCreate.length === 0) {
+            return res.status(400).json({ msg: 'Request body must be an array of posts to create.' });
+        }
+
+        const createdPosts = [];
+
+        for (const post of postsToCreate) {
+            const { phoneNumber, postType, cardName } = post;
+            
+            // Create a simple user object for the post.
+            // Using a prefix to easily identify WhatsApp-sourced users.
+            const user = {
+                uid: `whatsapp_${phoneNumber.replace(/\D/g, '')}`,
+                displayName: phoneNumber,
+                photoURL: null,
+                contact: {
+                    email: null,
+                    phoneNumber: phoneNumber
+                }
+            };
+
+            const postData = {
+                cardName,
+                postType,
+                condition: 'Near Mint', // Default condition
+                price: null, // To be fetched by the worker
+                isApiPrice: true,
+                cardImageUrl: 'https://placehold.co/243x353?text=No+Image', // To be fetched by the worker
+                isActive: true,
+                user: user,
+                enrichment: {
+                    priceStatus: 'pending',
+                    imageStatus: 'pending',
+                    lastError: null
+                }
+            };
+            
+            const postId = await postsService.createPost(postData);
+            enqueue({ postId: postId, cardName }); // Enqueue for price/image fetching
+            
+            const savedPost = await postsService.getPost(postId);
+            createdPosts.push(savedPost);
+        }
+
+        res.status(201).json({
+            message: `Successfully created ${createdPosts.length} posts.`,
+            createdPosts
+        });
+
+    } catch (err) {
+        console.error("Error in createPostsFromWhatsapp:", err.message);
+        res.status(500).send('Server Error');
+    }
+};
