@@ -321,7 +321,7 @@ exports.createPostsFromList = async (req, res) => {
                 user: { 
                     uid, 
                     displayName, 
-                    photoURL,
+                    photoURL: photoURL || null,
                     contact: { 
                         email: userEmail || null, 
                         phoneNumber: userPhone || null 
@@ -353,4 +353,3 @@ exports.createPostsFromList = async (req, res) => {
         res.status(500).send('Server Error');
     }
 };
-
