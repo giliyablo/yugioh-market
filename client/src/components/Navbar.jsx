@@ -92,7 +92,7 @@ const Navbar = ({ onOpenCreateModal }) => {
                             <button className="user-dropdown__trigger">
                                 <img
                                     alt="User Avatar"
-                                    src={currentUser.picture || `https://ui-avatars.com/api/?name=${currentUser.displayName}&background=0D8ABC&color=fff`}
+                                    src={currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName}&background=0D8ABC&color=fff`}
                                 />
                             </button>
                             <div className="user-dropdown__menu">

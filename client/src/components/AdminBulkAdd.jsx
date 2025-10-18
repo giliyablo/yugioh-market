@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createPostsFromWhatsapp } from '../services/api'; // We will create this function
+import { createPostsFromWhatsapp } from '../services/api'; 
 import LoadingSpinner from './LoadingSpinner';
 import './Modal.css';
 import '../pages/HomePage.css';
@@ -11,36 +11,39 @@ const AdminBulkAdd = () => {
 
     const parseMessages = (text) => {
         const posts = [];
-        const lines = text.split('\n').filter(line => line.trim() !== '');
+        const lines = text.split('\n');
 
-        // Regex to capture phone number and message from a common WhatsApp format
-        const messageRegex = /\[.*?\] ([^:]+): (.*)/;
+        let currentUser = '';
+        let currentPostType = '';
+
+        const userRegex = /\[.*?\] ([^:]+):/;
 
         for (const line of lines) {
-            const match = line.match(messageRegex);
-            if (!match) continue;
-
-            const [, phoneNumber, message] = match;
-            let postType = '';
-            let cleanedMessage = message.toLowerCase();
-
-            if (cleanedMessage.includes('מוכר') || cleanedMessage.includes('sell')) {
-                postType = 'sell';
-                cleanedMessage = cleanedMessage.replace('מוכר', '').replace('sell', '');
-            } else if (cleanedMessage.includes('מחפש') || cleanedMessage.includes('קונה') || cleanedMessage.includes('buy')) {
-                postType = 'buy';
-                cleanedMessage = cleanedMessage.replace('מחפש', '').replace('buy', '');
-                cleanedMessage = cleanedMessage.replace('קונה', '').replace('buy', '');
+            const userMatch = line.match(userRegex);
+            if (userMatch) {
+                currentUser = userMatch[1].trim();
+                currentPostType = ''; // Reset for the new user's message
             }
 
-            if (postType) {
-                // Split card names by comma
-                const cardNames = cleanedMessage.split(',')
-                    .map(name => name.trim())
-                    .filter(name => name);
-                
-                for (const cardName of cardNames) {
-                    posts.push({ phoneNumber, postType, cardName });
+            const trimmedLine = line.trim();
+            const lowerCaseLine = trimmedLine.toLowerCase();
+
+            const isBuy = lowerCaseLine.startsWith('buy:') || lowerCaseLine.startsWith('מחפש') || lowerCaseLine.startsWith('קונה');
+            const isSell = lowerCaseLine.startsWith('sell:') || lowerCaseLine.startsWith('מוכר');
+
+            if (isBuy || isSell) {
+                currentPostType = isBuy ? 'buy' : 'sell';
+                const restOfLine = trimmedLine.substring(trimmedLine.indexOf(':') + 1).trim();
+                if (restOfLine) {
+                    const cardName = restOfLine.replace(/(\d+x|x\d+|\d+)\s*/, '').trim();
+                    if (cardName) {
+                        posts.push({ phoneNumber: currentUser, postType: currentPostType, cardName });
+                    }
+                }
+            } else if (currentUser && currentPostType && trimmedLine) {
+                const cardName = trimmedLine.replace(/(\d+x|x\d+|\d+)\s*/, '').trim();
+                if (cardName) {
+                    posts.push({ phoneNumber: currentUser, postType: currentPostType, cardName });
                 }
             }
         }
@@ -62,7 +65,7 @@ const AdminBulkAdd = () => {
 
         try {
             const res = await createPostsFromWhatsapp({ posts: parsedPosts });
-            setFeedback({ message: res.message || `Successfully created ${res.createdPosts.length} posts.`, type: 'success' });
+            setFeedback({ message: res.data.message || `Successfully created ${res.data.createdPosts.length} posts.`, type: 'success' });
             setBulkText(''); // Clear textarea on success
         } catch (error) {
             const errorMessage = error.response?.data?.msg || 'An error occurred.';
@@ -71,6 +74,8 @@ const AdminBulkAdd = () => {
             setLoading(false);
         }
     };
+    
+    const parsedPosts = parseMessages(bulkText);
 
     return (
         <div className="admin-bulk-add">
@@ -90,8 +95,8 @@ const AdminBulkAdd = () => {
                 )}
 
                 <div className="modal-actions">
-                    <button type="submit" className="btn btn--primary" disabled={loading}>
-                        {loading ? <LoadingSpinner /> : `Create ${parseMessages(bulkText).length} Posts`}
+                    <button type="submit" className="btn btn--primary" disabled={loading || parsedPosts.length === 0}>
+                        {loading ? <LoadingSpinner /> : `Create ${parsedPosts.length} Posts`}
                     </button>
                 </div>
             </form>
