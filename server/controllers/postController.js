@@ -3,7 +3,7 @@ const { postsService } = require('../services/firestoreService');
 const admin = require('firebase-admin'); // Ensure firebase-admin is imported
 
 // This function now creates a job document in Firestore.
-const enqueue = async (jobData) => {
+exports.enqueue = async (jobData) => {
     try {
         // A simple check to prevent re-enqueueing jobs that are already being processed.
         const jobsRef = admin.firestore().collection('jobs');
