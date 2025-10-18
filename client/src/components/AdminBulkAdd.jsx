@@ -27,9 +27,10 @@ const AdminBulkAdd = () => {
             if (cleanedMessage.includes('מוכר') || cleanedMessage.includes('sell')) {
                 postType = 'sell';
                 cleanedMessage = cleanedMessage.replace('מוכר', '').replace('sell', '');
-            } else if (cleanedMessage.includes('מחפש') || cleanedMessage.includes('buy')) {
+            } else if (cleanedMessage.includes('מחפש') || cleanedMessage.includes('קונה') || cleanedMessage.includes('buy')) {
                 postType = 'buy';
                 cleanedMessage = cleanedMessage.replace('מחפש', '').replace('buy', '');
+                cleanedMessage = cleanedMessage.replace('קונה', '').replace('buy', '');
             }
 
             if (postType) {
