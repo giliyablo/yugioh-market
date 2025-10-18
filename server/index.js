@@ -21,7 +21,7 @@ try {
             });
             console.log("Firebase Admin SDK initialized with Application Default Credentials for project: fourth-arena-474414-h6");
         } else {
-            console.warn("⚠️  No Firebase credentials found - running in development mode");
+            console.warn("⚠️  No Firebase credentials found - running in development/test mode");
         }
     } else {
         console.log("Firebase Admin SDK already initialized");
@@ -37,15 +37,13 @@ try {
         db = admin.firestore();
         console.log("Firestore initialized successfully.");
     } else {
-        console.warn("⚠️  Firebase not initialized - using mock database");
+        console.warn("⚠️  Firebase not initialized - using mock database for tests");
         db = null;
     }
 } catch (error) {
     console.warn("⚠️  Error initializing Firestore:", error.message);
     db = null;
 }
-
-module.exports = { db };
 
 // --- Initialize Express App ---
 const app = express();
@@ -98,6 +96,13 @@ app.get('/test-firestore', async (req, res) => {
 });
 
 // --- Start Server ---
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+// This check ensures the server only starts listening when the file is run directly
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+// Export the app for testing purposes
+module.exports = { db, app };
+

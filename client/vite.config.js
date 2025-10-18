@@ -8,4 +8,9 @@ export default defineConfig({
     port: 3000, // Optional: You can specify the port
     open: true,  // Optional: Automatically open the browser on start-up
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.js',
+  },
 })
