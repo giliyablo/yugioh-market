@@ -1,41 +1,57 @@
 const express = require('express');
 const router = express.Router();
-const postController = require('../controllers/postController');
-const authMiddleware = require('../middleware/authMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
-const { cardDataQueue } = require('../../worker'); // Import the queue
+const {
+    getAllPosts,
+    createPost,
+    createBatchPosts,
+    createPostsFromList,
+    updatePost,
+    deletePost,
+    getMyPosts,
+    createPostsFromWhatsapp
+} = require('../controllers/postController');
+const authMiddleware = require('../middleware/authMiddleware');
 
-// --- Public Routes ---
-router.get('/', postController.getPosts);
+// @route   GET /api/posts
+// @desc    Get all active posts
+// @access  Public
+router.get('/', getAllPosts);
 
-// --- Protected Routes (User must be logged in) ---
-router.get('/my-posts', authMiddleware, postController.getMyPosts);
-router.post('/', authMiddleware, postController.createPost);
-router.put('/:id', authMiddleware, postController.updatePost);
-router.delete('/:id', authMiddleware, postController.deletePost);
+// @route   GET /api/posts/my-posts
+// @desc    Get posts for the currently authenticated user
+// @access  Private
+router.get('/my-posts', authMiddleware, getMyPosts);
 
-// Batch creation routes
-router.post('/batch', authMiddleware, postController.createBatchPosts);
-router.post('/batch-list', authMiddleware, postController.createPostsFromList);
+// @route   POST /api/posts
+// @desc    Create a single new post
+// @access  Private (Requires authentication)
+router.post('/', authMiddleware, createPost);
 
-// --- Admin Routes ---
-router.post('/admin/batch-whatsapp', authMiddleware, adminMiddleware, postController.createPostsFromWhatsapp);
+// @route   POST /api/posts/batch
+// @desc    Create multiple posts from a file upload
+// @access  Private (Requires authentication)
+// Note: This is a complex endpoint and the controller has a placeholder implementation.
+router.post('/batch', authMiddleware, createBatchPosts);
 
-// Route to trigger the worker
-router.post('/fetch-card', authMiddleware, async (req, res) => {
-    const { cardName } = req.body;
-    if (!cardName) {
-        return res.status(400).send('Card name is required');
-    }
+// @route   POST /api/posts/batch-list
+// @desc    Create multiple posts from a list of card names
+// @access  Private (Requires authentication)
+router.post('/batch-list', authMiddleware, createPostsFromList);
 
-    try {
-        // Add a job to the queue
-        await cardDataQueue.add('fetch-card-data', { cardName });
-        res.status(202).json({ message: `Job accepted for card: ${cardName}` });
-    } catch (error) {
-        console.error('Failed to enqueue job:', error);
-        res.status(500).send('Failed to enqueue job');
-    }
-});
+// @route   PUT /api/posts/:id
+// @desc    Update a post (owner only)
+// @access  Private
+router.put('/:id', authMiddleware, updatePost);
+
+// @route   DELETE /api/posts/:id
+// @desc    Delete a post (owner only)
+// @access  Private
+router.delete('/:id', authMiddleware, deletePost);
 
 module.exports = router;
+
+// @route   POST /api/admin/batch-whatsapp
+// @desc    Create multiple posts from parsed WhatsApp messages
+// @access  Admin Only
+router.post('/admin/batch-whatsapp', authMiddleware, adminMiddleware, createPostsFromWhatsapp);
