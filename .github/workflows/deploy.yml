@@ -1,115 +1,67 @@
-name: Build and Deploy to GCP
+name: Build and Deploy to GKE
 
 on:
   push:
-    branches: [ main, develop ]
-  workflow_dispatch:
-    inputs:
-      service:
-        description: 'Service to deploy'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-        - all
-        - server
-        - worker
-        - client
-
-env:
-  PROJECT_ID: fourth-arena-474414-h6
-  REGION: us-central1
-  SERVER_SERVICE: tcg-marketplace-server
-  CLIENT_SERVICE: tcg-marketplace-client
-  WORKER_SERVICE: tcg-marketplace-worker
+    branches:
+      - main
 
 jobs:
   test:
+    name: Run Tests
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
-          cache: 'npm'
 
-      - name: Install server dependencies and test
-        run: cd server && npm ci && npm test
+      - name: Install Server Dependencies and Test
+        run: |
+          echo "--- Testing Server ---"
+          cd server
+          npm install
+          npm test
 
-      - name: Install worker dependencies and test
-        run: cd worker && npm ci && npm test
-        
-      - name: Install client dependencies and test
-        run: cd client && npm ci && npm test
+      - name: Install Client Dependencies and Test
+        run: |
+          echo "--- Testing Client ---"
+          cd client
+          npm install
+          npm test
 
-  deploy:
-    needs: test
+      - name: Install Worker Dependencies and Test
+        run: |
+          echo "--- Testing Worker ---"
+          cd worker
+          npm install
+          npm test
+
+  build-and-deploy:
+    name: Build and Deploy
     runs-on: ubuntu-latest
-    # This job runs on push to main/develop OR if manually triggered
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: test # This job will only run if the 'test' job succeeds
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v3
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - id: 'auth'
+        uses: 'google-github-actions/auth@v1'
         with:
-          service_account_key: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Build and Deploy Server
-        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'server' || github.event_name == 'push'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+
+      - name: 'Authorize Docker push'
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Deploy Script
         run: |
-          echo "--- Building and Deploying Server ---"
-          gcloud builds submit --tag gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest ./server
-          gcloud run deploy $SERVER_SERVICE \
-            --image gcr.io/$PROJECT_ID/$SERVER_SERVICE:latest \
-            --platform managed \
-            --region $REGION \
-            --allow-unauthenticated \
-            --port 5000 \
-            --memory 1Gi \
-            --cpu 1 \
-            --set-env-vars NODE_ENV=production \
-            --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}:latest"
-
-      - name: Build and Deploy Worker
-        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'worker' || github.event_name == 'push'
-        run: |
-          echo "--- Building and Deploying Worker ---"
-          gcloud builds submit --tag gcr.io/$PROJECT_ID/$WORKER_SERVICE:latest ./worker
-          gcloud run deploy $WORKER_SERVICE \
-            --image gcr.io/$PROJECT_ID/$WORKER_SERVICE:latest \
-            --platform managed \
-            --region $REGION \
-            --no-allow-unauthenticated \
-            --port 4000 \
-            --memory 2Gi \
-            --cpu 2 \
-            --set-env-vars NODE_ENV=production \
-            --set-secrets="FIREBASE_SERVICE_ACCOUNT_JSON=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}:latest"
-
-      - name: Build and Deploy Client
-        if: github.event.inputs.service == 'all' || github.event.inputs.service == 'client' || github.event_name == 'push'
-        run: |
-          echo "--- Building and Deploying Client ---"
-          SERVER_URL=$(gcloud run services describe $SERVER_SERVICE --platform managed --region $REGION --format 'value(status.url)')
-          if [ -z "$SERVER_URL" ]; then
-            echo "::error::Could not retrieve server URL. Deploy the server first."
-            exit 1
-          fi
-          gcloud builds submit --tag gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest ./client
-          gcloud run deploy $CLIENT_SERVICE \
-            --image gcr.io/$PROJECT_ID/$CLIENT_SERVICE:latest \
-            --platform managed \
-            --region $REGION \
-            --allow-unauthenticated \
-            --port 3000 \
-            --memory 1Gi \
-            --cpu 1 \
-            --set-env-vars VITE_API_URL=$SERVER_URL/api
-
+          chmod +x ./deployment/build-deploy-gcp.sh
+          ./deployment/build-deploy-gcp.sh
+          
