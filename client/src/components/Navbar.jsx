@@ -5,10 +5,9 @@ import { LogIn, LogOut, PlusCircle, List, Search, Menu, X } from 'lucide-react';
 import './Navbar.css';
 import '../pages/HomePage.css';
 import { Shield } from 'lucide-react'; // Import a new icon
-const { currentUser, loginWithGoogle, logout, isAdmin } = useAuth(); // Add isAdmin
 
 const Navbar = ({ onOpenCreateModal }) => {
-    const { currentUser, loginWithGoogle, logout } = useAuth();
+    const { currentUser, loginWithGoogle, logout, isAdmin } = useAuth(); // Moved inside the component
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [cardQuery, setCardQuery] = useState(searchParams.get('q') || '');

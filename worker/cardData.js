@@ -99,8 +99,10 @@ const getCardImageFromYugipedia = async (cardName) => {
 
             // 2. Construct the URL using a template literal
             const imageUrl = `https://tcgplayer-cdn.tcgplayer.com/product/${productId}_in_1000x1000.jpg`;
-            return imageUrl;
-            
+            if (productId)
+            {
+                return imageUrl;
+            }
         } catch (error) {
             try {
                 const nameParam = encodeURIComponent(String(cardName).trim());
