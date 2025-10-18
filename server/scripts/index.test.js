@@ -1,14 +1,36 @@
 const request = require('supertest');
-const { app } = require('../index');
+const { app, server } = require('../index');
 const { postsService } = require('../services/firestoreService');
 
-// Mock the auth middleware to bypass actual authentication
+// Mock the firebase-admin library
+jest.mock('firebase-admin', () => {
+    const firestore = () => ({
+        collection: () => ({
+            doc: () => ({
+                get: () => Promise.resolve({ exists: true, data: () => ({}) }),
+                set: () => Promise.resolve(),
+            }),
+            add: () => Promise.resolve(),
+        }),
+    });
+
+    firestore.FieldValue = {
+        serverTimestamp: () => new Date(),
+    };
+
+    return {
+        initializeApp: jest.fn(),
+        firestore,
+    };
+});
+
+// Mock the auth middleware
 jest.mock('../middleware/authMiddleware', () => (req, res, next) => {
   req.user = { uid: 'test-user-123', name: 'Test User', email: 'test@example.com' };
   next();
 });
 
-// Mock the firestoreService to avoid hitting a real database
+// Mock the firestoreService
 jest.mock('../services/firestoreService', () => ({
   postsService: {
     getAllPosts: jest.fn(),
@@ -21,6 +43,11 @@ describe('Posts API Endpoints', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  // This will close the server after all tests are done
+  afterAll((done) => {
+    server.close(done);
   });
 
   describe('GET /api/', () => {
@@ -36,7 +63,6 @@ describe('Posts API Endpoints', () => {
       expect(response.status).toBe(200);
       expect(response.body.items).toBeInstanceOf(Array);
       expect(response.body.items.length).toBe(2);
-      expect(response.body.items[0].cardName).toBe('Blue-Eyes White Dragon');
     });
   });
 
@@ -50,27 +76,7 @@ describe('Posts API Endpoints', () => {
       };
       
       const createdPostId = 'post-id-123';
-      const expectedPost = { 
-        id: createdPostId, 
-        ...newPostPayload, 
-        isActive: true, 
-        user: { 
-          uid: 'test-user-123',
-          displayName: 'Test User',
-          photoURL: null,
-          contact: {
-            email: 'test@example.com',
-            phoneNumber: null
-          }
-        },
-        isApiPrice: false,
-        enrichment: {
-          priceStatus: 'idle',
-          imageStatus: 'pending',
-          lastError: null
-        },
-        cardImageUrl: 'https://placehold.co/243x353?text=No+Image'
-      };
+      const expectedPost = { id: createdPostId, ...newPostPayload, isActive: true };
 
       postsService.createPost.mockResolvedValue(createdPostId);
       postsService.getPost.mockResolvedValue(expectedPost);

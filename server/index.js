@@ -96,13 +96,16 @@ app.get('/test-firestore', async (req, res) => {
 });
 
 // --- Start Server ---
-// This check ensures the server only starts listening when the file is run directly
-if (require.main === module) {
-    app.listen(PORT, () => {
+let server;
+if (process.env.NODE_ENV !== 'test') {
+    server = app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });
+} else {
+    // In test environment, we just need to export the app
+    server = app.listen(PORT);
 }
 
-// Export the app for testing purposes
-module.exports = { db, app };
 
+// Export the app and server for testing purposes
+module.exports = { db, app, server };
