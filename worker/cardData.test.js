@@ -1,33 +1,89 @@
 const { getMarketPrice, getCardImageFromYugipedia } = require('./cardData');
+const axios = require('axios');
 
-// Test for fetching market price
+jest.mock('axios');
+
 describe('getMarketPrice', () => {
-  it('should fetch the market price for "Scapeghost"', async () => {
-    console.log('Testing price fetching for card: Scapeghost');
-    const result = await getMarketPrice('Scapeghost');
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
 
-    console.log('Price API Result:', result);
+  it('should fetch the market price from TCGPlayer', async () => {
+    const cardName = 'Blue-Eyes White Dragon';
+    const mockResponse = {
+      data: {
+        results: [
+          {
+            results: [
+              {
+                marketPrice: 12.34,
+              },
+            ],
+          },
+        ],
+      },
+    };
+    axios.post.mockResolvedValue(mockResponse);
 
-    expect(result).toBeDefined();
-    expect(result.cardName).toBe('Scapeghost');
-    expect(result.price).not.toBeNull();
-    expect(typeof result.price).toBe('number');
-    expect(result.price).toBeGreaterThan(0);
-  }, 20000);
+    const result = await getMarketPrice(cardName);
+
+    expect(result.price).toBe(12.34);
+    expect(axios.post).toHaveBeenCalledWith(
+      expect.stringContaining(cardName.replace(/-/g, ' ')),
+      expect.any(Object),
+      expect.any(Object)
+    );
+  });
 });
 
-// New test for fetching card image
 describe('getCardImageFromYugipedia', () => {
-  it('should fetch the image URL for "Scapeghost"', async () => {
-    console.log('Testing image fetching for card: Scapeghost');
-    const imageUrl = await getCardImageFromYugipedia('Scapeghost');
-
-    console.log('Image URL Result:', imageUrl);
-
-    expect(imageUrl).not.toBeNull();
-    expect(typeof imageUrl).toBe('string');
-    // This regex checks for a valid image URL from either the primary or fallback source.
-    expect(imageUrl).toMatch(/^https:\/\/.+\.(png|jpg|jpeg)(\?.*)?$/);
-  }, 20000); // Increased timeout for network requests
-});
-
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+  
+    it('should fetch the image URL for "Dark Magician"', async () => {
+      const cardName = 'Dark Magician';
+      const mockApiResponse = {
+        data: {
+          data: [
+            {
+              card_images: [
+                {
+                  image_url: 'https://example.com/dark_magician.jpg',
+                },
+              ],
+            },
+          ],
+        },
+      };
+  
+      axios.get.mockResolvedValue(mockApiResponse);
+  
+      const imageUrl = await getCardImageFromYugipedia(cardName);
+  
+      expect(imageUrl).toBe('https://example.com/dark_magician.jpg');
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining(encodeURIComponent(cardName)), expect.any(Object));
+    });
+  
+    it('should return null if no image is found', async () => {
+      const cardName = 'Non-Existent Card';
+      const mockApiResponse = {
+        data: {
+          data: [],
+        },
+      };
+      const mockJustTcgResponse = {
+        data: {
+          cards: []
+        }
+      };
+  
+      axios.get
+        .mockResolvedValueOnce(mockApiResponse)
+        .mockResolvedValueOnce(mockJustTcgResponse);
+  
+      const imageUrl = await getCardImageFromYugipedia(cardName);
+  
+      expect(imageUrl).toBeNull();
+    });
+  });

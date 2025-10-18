@@ -1,8 +1,8 @@
-const { processJob } = require('../jobs');
-const cardData = require('../cardData');
+const { processJob } = require('./jobs');
+const cardData = require('./cardData');
 
 // Mock the cardData module
-jest.mock('../cardData', () => ({
+jest.mock('./cardData', () => ({
   getMarketPrice: jest.fn(),
   getCardImageFromYugipedia: jest.fn(),
 }));
@@ -51,15 +51,15 @@ describe('Worker Job Processing', () => {
     expect(cardData.getMarketPrice).toHaveBeenCalledWith('Blue-Eyes White Dragon');
     expect(cardData.getCardImageFromYugipedia).toHaveBeenCalledWith('Blue-Eyes White Dragon');
     
-    expect(mockUpdate).toHaveBeenCalledTimes(2); // enrichment status update + final update
+    expect(mockUpdate).toHaveBeenCalledTimes(1); 
     
     // Check the final update payload
-    const finalUpdateCall = mockUpdate.mock.calls[1][0];
+    const finalUpdateCall = mockUpdate.mock.calls[0][0];
     expect(finalUpdateCall.price).toBe(12.34);
     expect(finalUpdateCall.cardImageUrl).toBe('http://example.com/image.png');
     expect(finalUpdateCall.isApiPrice).toBe(true);
-    expect(finalUpdateCall.enrichment.priceStatus).toBe('done');
-    expect(finalUpdateCall.enrichment.imageStatus).toBe('done');
+    expect(finalUpdateCall['enrichment.priceStatus']).toBe('done');
+    expect(finalUpdateCall['enrichment.imageStatus']).toBe('done');
   });
 
   it('should only fetch the image if price already exists', async () => {
@@ -83,10 +83,9 @@ describe('Worker Job Processing', () => {
     // Assert
     expect(cardData.getMarketPrice).not.toHaveBeenCalled();
     expect(cardData.getCardImageFromYugipedia).toHaveBeenCalledWith('Dark Magician');
-    const finalUpdateCall = mockUpdate.mock.calls[1][0];
+    const finalUpdateCall = mockUpdate.mock.calls[0][0];
     expect(finalUpdateCall.cardImageUrl).toBe('http://example.com/dark_magician.png');
-    expect(finalUpdateCall.enrichment.imageStatus).toBe('done');
-    expect(finalUpdateCall.enrichment.priceStatus).toBe(undefined); // Should not be touched
+    expect(finalUpdateCall['enrichment.imageStatus']).toBe('done');
+    expect(finalUpdateCall['enrichment.priceStatus']).toBe(undefined); // Should not be touched
   });
 });
-

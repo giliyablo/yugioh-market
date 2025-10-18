@@ -47,11 +47,30 @@ describe('Posts API Endpoints', () => {
         postType: 'sell',
         price: 10,
         condition: 'Near Mint',
-        user: { uid: 'test-user-123' }
       };
       
       const createdPostId = 'post-id-123';
-      const expectedPost = { id: createdPostId, ...newPostPayload, isActive: true };
+      const expectedPost = { 
+        id: createdPostId, 
+        ...newPostPayload, 
+        isActive: true, 
+        user: { 
+          uid: 'test-user-123',
+          displayName: 'Test User',
+          photoURL: null,
+          contact: {
+            email: 'test@example.com',
+            phoneNumber: null
+          }
+        },
+        isApiPrice: false,
+        enrichment: {
+          priceStatus: 'idle',
+          imageStatus: 'pending',
+          lastError: null
+        },
+        cardImageUrl: 'https://placehold.co/243x353?text=No+Image'
+      };
 
       postsService.createPost.mockResolvedValue(createdPostId);
       postsService.getPost.mockResolvedValue(expectedPost);
@@ -71,7 +90,6 @@ describe('Posts API Endpoints', () => {
       const newPostPayload = {
         postType: 'sell',
         price: 10,
-        user: { uid: 'test-user-123' }
       };
 
       const response = await request(app)
@@ -83,4 +101,3 @@ describe('Posts API Endpoints', () => {
     });
   });
 });
-
