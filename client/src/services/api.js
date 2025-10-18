@@ -1,59 +1,111 @@
 import axios from 'axios';
 import { auth } from './firebase';
 
-// Set the base URL for your backend server
-// In production, this will be set by the deployment environment
-// In Docker, this will be the internal service name
-const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? 'https://api.tcgsmarketplace.com/api' : 'https://api.tcgsmarketplace.com/api');
+const localApiUrl = 'http://localhost:5000/api';
+const productionApiUrl = 'https://api.tcgsmarketplace.com/api';
 
-const api = axios.create({
-    baseURL: API_URL,
-});
+// A promise that resolves to the configured axios instance.
+// This allows us to perform an async health check before the instance is used.
+let apiInstancePromise = null;
 
-// Interceptor to add the Firebase auth token to every request
-api.interceptors.request.use(
-    async (config) => {
-        const user = auth.currentUser;
-        if (user) {
-            const token = await user.getIdToken();
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => {
-        return Promise.reject(error);
+function getApi() {
+    // If the promise already exists, return it (singleton pattern).
+    if (apiInstancePromise) {
+        return apiInstancePromise;
     }
-);
+
+    // Otherwise, create the promise. It will check the local server's health
+    // and then create the axios instance with the appropriate base URL.
+    apiInstancePromise = new Promise(async (resolve) => {
+        let baseUrl = productionApiUrl; // Default to production
+
+        // In development, try to connect to the local server.
+        const devApiUrl = import.meta.env.VITE_API_URL || localApiUrl;
+
+        if (import.meta.env.DEV) {
+            try {
+                // Ping the health endpoint with a 2-second timeout.
+                await axios.get(`${devApiUrl}/health`, { timeout: 2000 });
+                baseUrl = devApiUrl;
+                console.log(`✅ Local server is healthy. Using API at ${baseUrl}`);
+            } catch (error) {
+                console.warn(`⚠️ Local server at ${devApiUrl} not responding. Falling back to production API.`);
+                baseUrl = productionApiUrl;
+            }
+        }
+
+        const api = axios.create({
+            baseURL: baseUrl,
+        });
+
+        // Interceptor to add the Firebase auth token to every request
+        api.interceptors.request.use(
+            async (config) => {
+                const user = auth.currentUser;
+                if (user) {
+                    try {
+                        const token = await user.getIdToken();
+                        config.headers.Authorization = `Bearer ${token}`;
+                    } catch (error) {
+                        console.error("Error getting user ID token:", error);
+                    }
+                }
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
+
+        resolve(api);
+    });
+
+    return apiInstancePromise;
+}
 
 // --- Post Functions ---
+// Each function now awaits the resolved API instance before making a request.
 
-// Fetch all active posts with optional filters/pagination
-export const getPosts = (params) => api.get('/', { params });
+export const getPosts = async (params) => {
+    const api = await getApi();
+    return api.get('/', { params });
+};
 
-// Fetch posts belonging to the current user
-export const getMyPosts = () => api.get('/my-posts');
+export const getMyPosts = async () => {
+    const api = await getApi();
+    return api.get('/my-posts');
+};
 
-// Create a single new post
-export const createPost = (postData) => api.post('/', postData);
+export const createPost = async (postData) => {
+    const api = await getApi();
+    return api.post('/', postData);
+};
 
-// Create multiple posts from a file upload (multipart)
-export const createBatchPosts = (formData) => api.post('/batch', formData, {
-    headers: {
-        'Content-Type': 'multipart/form-data',
-    }
-});
+export const createBatchPosts = async (formData) => {
+    const api = await getApi();
+    return api.post('/batch', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+};
 
-// Create multiple posts from a list of names
-export const createPostsFromList = (payload) => api.post('/batch-list', payload);
+export const createPostsFromList = async (payload) => {
+    const api = await getApi();
+    return api.post('/batch-list', payload);
+};
 
-// Update an existing post
-export const updatePost = (id, payload) => api.put(`/${id}`, payload);
+export const updatePost = async (id, payload) => {
+    const api = await getApi();
+    return api.put(`/${id}`, payload);
+};
 
-// Delete a post
-export const deletePost = (id) => api.delete(`/${id}`);
+export const deletePost = async (id) => {
+    const api = await getApi();
+    return api.delete(`/${id}`);
+};
 
-export default api;
-
-// Create multiple posts from a parsed WhatsApp payload (Admin only)
-export const createPostsFromWhatsapp = (payload) => api.post('/admin/batch-whatsapp', payload);
+export const createPostsFromWhatsapp = async (payload) => {
+    const api = await getApi();
+    return api.post('/admin/batch-whatsapp', payload);
+};
