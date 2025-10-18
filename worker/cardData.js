@@ -66,31 +66,69 @@ const getMarketPrice = async (cardName) => {
 
 
 const getCardImageFromYugipedia = async (cardName) => {
-    try {
-        const nameParam = encodeURIComponent(String(cardName).trim());
-        const { data } = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
+    const original = String(cardName).trim();
+    const normalized = cardName.replace(/-/g, ' ');
+    const superNormalized = cardName.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 
-        const cardImages = data?.data?.[0]?.card_images;
-        if (cardImages && cardImages.length > 0) {
-            return cardImages[0].image_url_small || cardImages[0].image_url;
-        }
+    const searchTerms = Array.from(new Set([normalized, superNormalized, original]));
 
-        // Fallback to JustTCG if no image is found
-        const justTcgData = await axios.get(`https://api.justtcg.com/v2/cards?q=${nameParam}`, {
-            headers: {
-                'Authorization': `Bearer ${process.env.JUSTTCG_API_KEY}`
-            }
-        });
-        if (justTcgData.data && justTcgData.data.cards && justTcgData.data.cards.length > 0) {
-            const card = justTcgData.data.cards[0];
-            if (card.image) {
-                return card.image;
+    for (const term of searchTerms) {
+        if (!term) continue;
+
+        try {
+            // First, try TCGPlayer
+            const payload = {
+                "algorithm": "sales_synonym_v2",
+                "from": 0,
+                "size": 25,
+                "sort": {}
+            };
+
+            const response = await axios.post(
+                `https://mp-search-api.tcgplayer.com/v1/search/request?q=${term}&isList=false`,
+                payload,
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    }
+                }
+            );
+            // 1. Access the productId from the first result
+            const productId = response.data?.results[0]?.results[0]?.productId;
+
+            // 2. Construct the URL using a template literal
+            const imageUrl = `https://tcgplayer-cdn.tcgplayer.com/product/${productId}_in_1000x1000.jpg`;
+            return imageUrl;
+            
+        } catch (error) {
+            try {
+                const nameParam = encodeURIComponent(String(cardName).trim());
+                const { data } = await axios.get(`https://db.ygoprodeck.com/api/v7/cardinfo.php?name=${nameParam}`, { timeout: 10000 });
+
+                const cardImages = data?.data?.[0]?.card_images;
+                if (cardImages && cardImages.length > 0) {
+                    return cardImages[0].image_url_small || cardImages[0].image_url;
+                }
+
+                // Fallback to JustTCG if no image is found
+                const justTcgData = await axios.get(`https://api.justtcg.com/v2/cards?q=${nameParam}`, {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.JUSTTCG_API_KEY}`
+                    }
+                });
+                if (justTcgData.data && justTcgData.data.cards && justTcgData.data.cards.length > 0) {
+                    const card = justTcgData.data.cards[0];
+                    if (card.image) {
+                        return card.image;
+                    }
+                }
+                return null;
+            } catch (fallbackErr) {
+                console.error('Fallback to YGOPRODeck API failed:', fallbackErr.message);
+                return null;
             }
         }
-        return null;
-    } catch (fallbackErr) {
-        console.error('Fallback to YGOPRODeck API failed:', fallbackErr.message);
-        return null;
     }
 };
 
