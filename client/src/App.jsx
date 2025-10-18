@@ -6,6 +6,8 @@ import HomePage from './pages/HomePage';
 import MyPostsPage from './pages/MyPostsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedAdminRoute from './components/AdminRoute'; // Import the new route protector
+import AdminPage from './pages/AdminPage'; // Import the new page
 
 function App() {
   // State to manage the create post modal's visibility
@@ -34,6 +36,14 @@ function App() {
                   <MyPostsPage />
                 </ProtectedRoute>
               } 
+            />
+            <Route 
+              path="/admin"
+              element={
+                <ProtectedAdminRoute>
+                  <AdminPage />
+                </ProtectedAdminRoute>
+              }
             />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

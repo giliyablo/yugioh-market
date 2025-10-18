@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { LogIn, LogOut, PlusCircle, List, Search, Menu, X } from 'lucide-react';
 import './Navbar.css';
 import '../pages/HomePage.css';
+import { Shield } from 'lucide-react'; // Import a new icon
+const { currentUser, loginWithGoogle, logout, isAdmin } = useAuth(); // Add isAdmin
 
 const Navbar = ({ onOpenCreateModal }) => {
     const { currentUser, loginWithGoogle, logout } = useAuth();
@@ -103,6 +105,14 @@ const Navbar = ({ onOpenCreateModal }) => {
                                 <Link to="/my-posts" className="user-dropdown__item">
                                     <List size={16} /> My Posts
                                 </Link>
+                                <a onClick={logout} className="user-dropdown__item user-dropdown__item--danger">
+                                    <LogOut size={16} /> Logout
+                                </a>
+                                {isAdmin && (
+                                    <Link to="/admin" className="user-dropdown__item">
+                                        <Shield size={16} /> Admin Panel
+                                    </Link>
+                                )}
                                 <a onClick={logout} className="user-dropdown__item user-dropdown__item--danger">
                                     <LogOut size={16} /> Logout
                                 </a>

@@ -54,3 +54,6 @@ export const updatePost = (id, payload) => api.put(`/${id}`, payload);
 export const deletePost = (id) => api.delete(`/${id}`);
 
 export default api;
+
+// Create multiple posts from a parsed WhatsApp payload (Admin only)
+export const createPostsFromWhatsapp = (payload) => api.post('/admin/batch-whatsapp', payload);

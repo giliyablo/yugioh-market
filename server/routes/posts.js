@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const adminMiddleware = require('../middleware/adminMiddleware');
 const {
     getAllPosts,
     createPost,
@@ -7,7 +8,8 @@ const {
     createPostsFromList,
     updatePost,
     deletePost,
-    getMyPosts
+    getMyPosts,
+    createPostsFromWhatsapp
 } = require('../controllers/postController');
 const authMiddleware = require('../middleware/authMiddleware');
 
@@ -48,3 +50,8 @@ router.put('/:id', authMiddleware, updatePost);
 router.delete('/:id', authMiddleware, deletePost);
 
 module.exports = router;
+
+// @route   POST /api/admin/batch-whatsapp
+// @desc    Create multiple posts from parsed WhatsApp messages
+// @access  Admin Only
+router.post('/admin/batch-whatsapp', authMiddleware, adminMiddleware, createPostsFromWhatsapp);
