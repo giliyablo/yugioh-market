@@ -2,6 +2,13 @@
 
 set -e
 
+# --- Configuration ---
+# NOTE: This script assumes you have a Kubernetes cluster with an Ingress controller
+# (like NGINX) already set up. It also relies on locally built Docker images.
+# For GKE, you would typically use a CI/CD pipeline to push images to GCR.
+
+NAMESPACE="tcg-market"
+
 # --- Pre-flight checks ---
 check_kubernetes() {
     if ! command -v kubectl &> /dev/null; then
@@ -17,28 +24,27 @@ check_kubernetes() {
 
 # --- Deployment Functions ---
 
-# Deploys a single service (builds image, applies manifests)
 deploy_service() {
-    local service_name=$1 # e.g., "server"
-    local service_name_k8s="tcg-market-${service_name}" # e.g., "tcg-market-server"
+    local service_name=$1
+    local service_name_k8s="tcg-market-${service_name}"
 
     echo "--- 🐳 Building Docker image for $service_name ---"
-    # Ensure Docker daemon is running, this command assumes a local docker build environment
     docker build -t "$service_name_k8s:latest" -f "$service_name/Dockerfile" "$service_name/"
 
     echo "--- 📦 Applying Kubernetes manifests for $service_name ---"
+    # Here you would use templating (like Helm or Kustomize) to inject secrets
     kubectl apply -f "deployment/k8s/${service_name}-deployment.yaml"
     kubectl apply -f "deployment/k8s/${service_name}-service.yaml"
 
     echo "--- ⏳ Waiting for $service_name_k8s deployment to be ready ---"
-    kubectl wait --for=condition=available --timeout=300s "deployment/$service_name_k8s" -n tcg-market
+    kubectl wait --for=condition=available --timeout=300s "deployment/$service_name_k8s" -n $NAMESPACE
     echo "✅ $service_name is ready."
 }
 
-# Deploys all services
 deploy_all() {
     echo "--- 📦 Applying common Kubernetes manifests (namespace, configmap) ---"
     kubectl apply -f deployment/k8s/namespace.yaml
+    # NOTE: In a real scenario, FIREBASE_SERVICE_ACCOUNT_JSON would be a Kubernetes secret, not a ConfigMap
     kubectl apply -f deployment/k8s/configmap.yaml
 
     deploy_service "server"
@@ -49,14 +55,13 @@ deploy_all() {
     kubectl apply -f deployment/k8s/ingress.yaml
 
     echo "✅ All services deployed successfully!"
+    echo "👉 You may need to update your /etc/hosts file or DNS to point 'tcg-market.local' to your Ingress controller's IP."
 }
 
-# Deletes all resources in the namespace
 delete_all() {
     echo "--- 🗑️  Deleting all tcg-market resources from Kubernetes ---"
-    # --ignore-not-found=true prevents an error if the namespace doesn't exist
-    kubectl delete namespace tcg-market --ignore-not-found=true
-    echo "✅ Namespace 'tcg-market' and all its resources have been deleted."
+    kubectl delete namespace $NAMESPACE --ignore-not-found=true
+    echo "✅ Namespace '$NAMESPACE' and all its resources have been deleted."
 }
 
 # --- Usage instructions ---
@@ -74,7 +79,7 @@ usage() {
 
 COMMAND=${1:-"all"}
 
-echo "🚀 Managing Kubernetes deployment for tcg Market..."
+echo "🚀 Managing Kubernetes deployment for TCG Market..."
 check_kubernetes
 
 case $COMMAND in
@@ -82,11 +87,9 @@ case $COMMAND in
         deploy_all
         ;;
     "server"|"worker"|"client")
-        # For individual deployments, ensure namespace and configmap exist first
         kubectl apply -f deployment/k8s/namespace.yaml
         kubectl apply -f deployment/k8s/configmap.yaml
         deploy_service "$COMMAND"
-        # Re-apply ingress if we are touching client or server
         if [ "$COMMAND" = "server" ] || [ "$COMMAND" = "client" ]; then
             echo "--- 🌐 Applying Ingress ---"
             kubectl apply -f deployment/k8s/ingress.yaml
